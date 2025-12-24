@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -24,10 +25,14 @@ import (
 var webFS embed.FS
 
 func main() {
+	// 命令行参数
+	configFile := flag.String("config", "config.yaml", "配置文件路径")
+	flag.Parse()
+
 	// 加载配置
-	cfg, err := config.Load("config.yaml")
+	cfg, err := config.Load(*configFile)
 	if err != nil {
-		log.Printf("Warning: Failed to load config.yaml, using defaults: %v", err)
+		log.Printf("Warning: Failed to load %s, using defaults: %v", *configFile, err)
 		cfg = &config.Config{}
 		cfg.Server.Host = "0.0.0.0"
 		cfg.Server.Port = 8080
