@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加 DNS 记录 - Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<h2>添加 DNS 记录 - {{.Domain}}</h2>
+
+{{if .Error}}
+<div class="alert alert-danger">{{.Error}}</div>
+{{end}}
+
+<form method="POST" action="/dns/add" x-data="{
+    recordType: 'A',
+    showCAA: false,
+    showSRV: false,
+    showMXPriority: false,
+    updateForm() {
+        this.showCAA = this.recordType === 'CAA';
+        this.showSRV = this.recordType === 'SRV';
+        this.showMXPriority = this.recordType === 'MX';
+    }
+}">
+    <input type="hidden" name="zoneid" value="{{.ZoneID}}">
+    <input type="hidden" name="domain" value="{{.Domain}}">
+
+    <div class="mb-3">
+        <label class="form-label">记录类型</label>
+        <select name="type" x-model="recordType" @change="updateForm()" class="form-control">
+            <option value="A">A</option>
+            <option value="AAAA">AAAA</option>
+            <option value="CNAME">CNAME</option>
+            <option value="MX">MX</option>
+            <option value="TXT">TXT</option>
+            <option value="NS">NS</option>
+            <option value="SPF">SPF</option>
+            <option value="PTR">PTR</option>
+            <option value="CAA">CAA</option>
+            <option value="SRV">SRV</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">名称</label>
+        <input type="text" name="name" class="form-control" placeholder="@或子域名" required>
+    </div>
+
+    <div class="mb-3" x-show="!showCAA && !showSRV">
+        <label class="form-label">内容</label>
+        <textarea name="content" class="form-control" rows="3" required></textarea>
+    </div>
+
+    <!-- CAA 特殊字段 -->
+    <div x-show="showCAA">
+        <div class="mb-3">
+            <label class="form-label">标签</label>
+            <select name="data_tag" class="form-control">
+                <option value="issue">issue</option>
+                <option value="issuewild">issuewild</option>
+                <option value="iodef">iodef</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">值</label>
+            <input type="text" name="data_value" class="form-control" placeholder="ca.example.com">
+        </div>
+    </div>
+
+    <!-- SRV 特殊字段 -->
+    <div x-show="showSRV">
+        <div class="mb-3">
+            <label class="form-label">服务</label>
+            <input type="text" name="srv_service" class="form-control" placeholder="_sip">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">协议</label>
+            <select name="srv_proto" class="form-control">
+                <option value="_tcp">_tcp</option>
+                <option value="_udp">_udp</option>
+                <option value="_tls">_tls</option>
+            </select>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">优先级</label>
+                <input type="number" name="srv_priority" class="form-control" value="10">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">权重</label>
+                <input type="number" name="srv_weight" class="form-control" value="5">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">端口</label>
+                <input type="number" name="srv_port" class="form-control" value="5060">
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">目标</label>
+            <input type="text" name="srv_target" class="form-control" placeholder="sip.example.com">
+        </div>
+    </div>
+
+    <!-- MX 优先级 -->
+    <div class="mb-3" x-show="showMXPriority">
+        <label class="form-label">优先级</label>
+        <input type="number" name="priority" class="form-control" value="10">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">TTL</label>
+        <select name="ttl" class="form-control">
+            <option value="1">自动</option>
+            <option value="120">2 分钟</option>
+            <option value="300">5 分钟</option>
+            <option value="600">10 分钟</option>
+            <option value="1800">30 分钟</option>
+            <option value="3600">1 小时</option>
+            <option value="7200">2 小时</option>
+            <option value="18000">5 小时</option>
+            <option value="43200">12 小时</option>
+            <option value="86400">1 天</option>
+        </select>
+    </div>
+
+    <div class="mb-3" x-show="recordType === 'A' || recordType === 'AAAA' || recordType === 'CNAME'">
+        <div class="form-check">
+            <input type="checkbox" name="proxied" value="true" class="form-check-input" id="proxied">
+            <label class="form-check-label" for="proxied">
+                启用 Cloudflare 代理（橙色云朵）
+            </label>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">添加记录</button>
+    <a href="/zone?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-secondary">取消</a>
+</form>
+</main>
+
+<script src="/static/js/htmx.min.js"></script>
+<script src="/static/js/alpine.min.js"></script>
+<script src="/static/js/chart.min.js"></script>
+</body>
+</html>

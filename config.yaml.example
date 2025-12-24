@@ -1,0 +1,19 @@
+# Cloudflare DNS Manager 配置文件示例
+# 复制此文件为 config.yaml 并修改配置
+
+server:
+  host: 0.0.0.0              # 监听地址
+  port: 8080                 # 监听端口
+  page_title: "Cloudflare DNS Manager"
+  debug: false               # 调试模式（显示详细日志）
+
+session:
+  expire: 3600               # 会话过期时间（秒），默认 1 小时
+  remember_expire: 31536000  # "记住我"过期时间（秒），默认 365 天
+
+rate_limit:
+  max_attempts: 5            # 最大登录尝试次数
+  window: 60                 # 时间窗口（分钟）
+
+cache:
+  dns_ttl: 172800            # DNS 缓存 TTL（秒），默认 48 小时

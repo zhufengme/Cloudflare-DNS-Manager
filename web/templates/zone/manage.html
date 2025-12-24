@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Domain}} - DNS 记录 - Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <style>
+        /* DNS 记录表格自动换行 */
+        .table td {
+            word-wrap: break-word;
+            word-break: break-all;
+            overflow-wrap: break-word;
+            max-width: 300px;
+        }
+        .table td code {
+            word-wrap: break-word;
+            word-break: break-all;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+        /* 为名称和内容列设置更合理的宽度 */
+        .table th:nth-child(2), .table td:nth-child(2) {
+            max-width: 200px;
+        }
+        .table th:nth-child(3), .table td:nth-child(3) {
+            max-width: 250px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{.Domain}} - DNS 记录</h2>
+    <div>
+        <a href="/certificates?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-success me-2">证书管理</a>
+        <a href="/settings?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-warning me-2">Zone 设置</a>
+        <a href="/security?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-info me-2">安全设置</a>
+        <a href="/dns/add?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-primary">添加记录</a>
+    </div>
+</div>
+
+<!-- DNS 记录统计卡片 -->
+<div class="card mb-3" id="dns-stats-card" hx-get="/api/dns/stats?zoneid={{.ZoneID}}" hx-trigger="load" hx-swap="innerHTML">
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <small class="text-muted d-block mt-1">正在加载统计...</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 搜索和过滤栏 -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-5">
+                <input type="search" class="form-control"
+                       id="dns-search"
+                       placeholder="搜索 DNS 记录（名称或内容）"
+                       hx-get="/api/dns/search?zoneid={{.ZoneID}}&domain={{.Domain}}"
+                       hx-trigger="keyup changed delay:500ms, search"
+                       hx-target="#dns-table-body"
+                       hx-include="[name='type'],[name='proxied']"
+                       name="query">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select"
+                        id="type-filter"
+                        hx-get="/api/dns/search?zoneid={{.ZoneID}}&domain={{.Domain}}"
+                        hx-trigger="change"
+                        hx-target="#dns-table-body"
+                        hx-include="[name='query'],[name='proxied']"
+                        name="type">
+                    <option value="">全部类型</option>
+                    <option value="A">A</option>
+                    <option value="AAAA">AAAA</option>
+                    <option value="CNAME">CNAME</option>
+                    <option value="MX">MX</option>
+                    <option value="TXT">TXT</option>
+                    <option value="NS">NS</option>
+                    <option value="SRV">SRV</option>
+                    <option value="CAA">CAA</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select"
+                        id="proxied-filter"
+                        hx-get="/api/dns/search?zoneid={{.ZoneID}}&domain={{.Domain}}"
+                        hx-trigger="change"
+                        hx-target="#dns-table-body"
+                        hx-include="[name='query'],[name='type']"
+                        name="proxied">
+                    <option value="">全部 CDN 状态</option>
+                    <option value="true">已启用 CDN</option>
+                    <option value="false">未启用 CDN</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button class="btn btn-outline-secondary w-100"
+                        onclick="document.getElementById('dns-search').value='';document.getElementById('type-filter').value='';document.getElementById('proxied-filter').value='';document.getElementById('dns-search').dispatchEvent(new Event('search'));"
+                        title="清除筛选">
+                    清除
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{if .Records}}
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>类型</th>
+                <th>名称</th>
+                <th>内容</th>
+                <th>TTL</th>
+                <th>CDN</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="dns-table-body">
+            {{range .Records}}
+            <tr>
+                <td><span class="badge bg-info">{{.Type}}</span></td>
+                <td><code>{{.Name}}</code></td>
+                <td>{{.Content}}</td>
+                <td>{{if eq .TTL 1}}自动{{else}}{{.TTL}}{{end}}</td>
+                <td>
+                    {{if or (eq .Type "A") (eq .Type "AAAA") (eq .Type "CNAME")}}
+                        {{if .Proxied}}
+                        <img src="/static/images/cloud_on.png"
+                             height="19"
+                             hx-post="/api/dns/{{.ID}}/toggle-proxy?zoneid={{$.ZoneID}}"
+                             hx-trigger="click"
+                             hx-swap="outerHTML"
+                             style="cursor:pointer;"
+                             title="点击禁用代理" />
+                        {{else}}
+                        <img src="/static/images/cloud_off.png"
+                             height="30"
+                             hx-post="/api/dns/{{.ID}}/toggle-proxy?zoneid={{$.ZoneID}}"
+                             hx-trigger="click"
+                             hx-swap="outerHTML"
+                             style="cursor:pointer;"
+                             title="点击启用代理" />
+                        {{end}}
+                    {{else}}
+                    <img src="/static/images/cloud_off.png" height="30" style="opacity:0.3;" />
+                    {{end}}
+                </td>
+                <td>
+                    <a href="/dns/edit?zoneid={{$.ZoneID}}&domain={{$.Domain}}&recordid={{.ID}}"
+                       class="btn btn-sm btn-warning">编辑</a>
+                    <a href="/dns/delete?zoneid={{$.ZoneID}}&domain={{$.Domain}}&delete={{.ID}}"
+                       class="btn btn-sm btn-danger"
+                       onclick="return confirm('确定删除 {{.Name}} 吗？')">删除</a>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+{{if .ResultInfo}}
+<nav>
+    <ul class="pagination">
+        {{if gt .Page 1}}
+        <li class="page-item">
+            <a class="page-link" href="?zoneid={{.ZoneID}}&domain={{.Domain}}&page={{sub .Page 1}}">上一页</a>
+        </li>
+        {{end}}
+        <li class="page-item disabled">
+            <span class="page-link">第 {{.Page}} / {{.ResultInfo.TotalPages}} 页</span>
+        </li>
+        {{if lt .Page .ResultInfo.TotalPages}}
+        <li class="page-item">
+            <a class="page-link" href="?zoneid={{.ZoneID}}&domain={{.Domain}}&page={{add .Page 1}}">下一页</a>
+        </li>
+        {{end}}
+    </ul>
+</nav>
+{{end}}
+
+{{else}}
+<div class="alert alert-info">
+    还没有 DNS 记录。<a href="/dns/add?zoneid={{.ZoneID}}&domain={{.Domain}}">添加第一条记录</a>
+</div>
+{{end}}
+
+<!-- CNAME Setup Section - 只在 CNAME Setup (partial) 模式显示 -->
+{{if eq .ZoneType "partial"}}
+{{if .Records}}
+<h3 class="mt-5 mb-3" id="cname">CNAME 设置</h3>
+<p class="text-muted">您可以使用 CNAME、IP 或 NS 来设置。此域名处于 CNAME Setup 模式（合作伙伴模式）。</p>
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>主机名</th>
+                <th>CNAME 目标</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Records}}
+            <tr>
+                <td><code>{{.Name}}</code></td>
+                <td><code>{{.Name}}.cdn.cloudflare.net</code></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<!-- IP Setup Section - CNAME Setup 模式才显示 -->
+{{if .AnycastIPs}}
+<h3 class="mt-5 mb-3" id="ip">IP 设置</h3>
+{{if .AnycastIPs.IPv4}}
+<h4 class="h6">Anycast IPv4</h4>
+<ul>
+    {{range .AnycastIPs.IPv4}}
+    <li><code>{{.}}</code></li>
+    {{end}}
+</ul>
+{{end}}
+{{if .AnycastIPs.IPv6}}
+<h4 class="h6">Anycast IPv6</h4>
+<ul>
+    {{range .AnycastIPs.IPv6}}
+    <li><code>{{.}}</code></li>
+    {{end}}
+</ul>
+{{end}}
+{{end}}
+{{end}}
+{{end}}
+
+<!-- NS Setup Section - Full Setup 模式显示，或始终显示 NS 记录 -->
+{{if .NSRecords}}
+<h3 class="mt-5 mb-3" id="ns">NS 设置</h3>
+{{if eq .ZoneType "full"}}
+<p class="text-muted">此域名处于 Full Setup 模式。请将您的域名 NS 记录指向以下 Cloudflare 名称服务器：</p>
+{{else}}
+<p class="text-muted">Cloudflare 名称服务器：</p>
+{{end}}
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>主机名</th>
+                <th>NS 记录</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .NSRecords}}
+            <tr>
+                <td><code>{{$.Domain}}</code></td>
+                <td><code>{{.}}</code></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+
+<hr>
+<div class="mt-4">
+    <a href="/zones" class="btn btn-secondary">返回域名列表</a>
+</div>
+</main>
+
+<script src="/static/js/htmx.min.js"></script>
+<script src="/static/js/alpine.min.js"></script>
+</body>
+</html>

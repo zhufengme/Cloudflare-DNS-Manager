@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加域名 - Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2 class="mb-4">添加域名</h2>
+
+        {{if .Error}}
+        <div class="alert alert-danger">{{.Error}}</div>
+        {{end}}
+
+        {{if .Success}}
+        <div class="alert alert-success">
+            {{.Success}}
+            <hr>
+            <p><strong>域名:</strong> {{.Zone.Name}}</p>
+            <p><strong>状态:</strong> {{.Zone.Status}}</p>
+            {{if .Zone.NameServers}}
+            <p><strong>NS 服务器:</strong></p>
+            <ul>
+                {{range .Zone.NameServers}}
+                <li><code>{{.}}</code></li>
+                {{end}}
+            </ul>
+            <p class="text-muted">请将您的域名 NS 记录指向以上服务器</p>
+            {{end}}
+            <a href="/zone?zoneid={{.Zone.ID}}&domain={{.Zone.Name}}" class="btn btn-primary">管理 DNS</a>
+            <a href="/zones" class="btn btn-secondary">返回列表</a>
+        </div>
+        {{else}}
+        <form method="POST" action="/zone/add">
+            <div class="mb-3">
+                <label for="zone_name" class="form-label">域名</label>
+                <input type="text"
+                       class="form-control"
+                       id="zone_name"
+                       name="zone_name"
+                       placeholder="example.com"
+                       required>
+                <small class="form-text text-muted">
+                    请输入您的域名（不包含 www）
+                </small>
+            </div>
+
+            <button type="submit" class="btn btn-primary">添加域名</button>
+            <a href="/zones" class="btn btn-secondary">取消</a>
+        </form>
+        {{end}}
+    </div>
+</div>
+</main>
+
+<script src="/static/js/htmx.min.js"></script>
+<script src="/static/js/alpine.min.js"></script>
+</body>
+</html>

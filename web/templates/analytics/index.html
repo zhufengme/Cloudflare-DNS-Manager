@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{.Domain}} - 流量统计</h2>
+    <a href="/zone?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-secondary">返回 DNS 管理</a>
+</div>
+
+{{if .Error}}
+<div class="alert alert-danger">{{.Error}}</div>
+{{end}}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            显示过去 24 小时的流量数据
+        </div>
+    </div>
+</div>
+
+<!-- 请求数 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">HTTP 请求数</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="requestsChart" style="max-height: 300px;"></canvas>
+    </div>
+</div>
+
+<!-- 带宽 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">带宽使用 (MB)</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="bandwidthChart" style="max-height: 300px;"></canvas>
+    </div>
+</div>
+
+<!-- 页面浏览量和独立访客 -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">页面浏览量</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="pageViewsChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">独立访客</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="uniquesChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 威胁拦截 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">威胁拦截次数</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="threatsChart" style="max-height: 300px;"></canvas>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="/zones" class="btn btn-secondary">返回域名列表</a>
+</div>
+
+<script>
+    // 从后端获取数据
+    const analyticsData = {{.AnalyticsJSON}};
+
+    // 请求数图表
+    new Chart(document.getElementById('requestsChart'), {
+        type: 'line',
+        data: {
+            labels: analyticsData.requests.map(d => d.timestamp),
+            datasets: [{
+                label: '请求数',
+                data: analyticsData.requests.map(d => d.value),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // 带宽图表
+    new Chart(document.getElementById('bandwidthChart'), {
+        type: 'bar',
+        data: {
+            labels: analyticsData.bandwidth.map(d => d.timestamp),
+            datasets: [{
+                label: '带宽 (MB)',
+                data: analyticsData.bandwidth.map(d => d.value),
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgb(54, 162, 235)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // 页面浏览量图表
+    new Chart(document.getElementById('pageViewsChart'), {
+        type: 'line',
+        data: {
+            labels: analyticsData.pageviews.map(d => d.timestamp),
+            datasets: [{
+                label: '页面浏览量',
+                data: analyticsData.pageviews.map(d => d.value),
+                borderColor: 'rgb(153, 102, 255)',
+                backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // 独立访客图表
+    new Chart(document.getElementById('uniquesChart'), {
+        type: 'line',
+        data: {
+            labels: analyticsData.uniques.map(d => d.timestamp),
+            datasets: [{
+                label: '独立访客',
+                data: analyticsData.uniques.map(d => d.value),
+                borderColor: 'rgb(255, 159, 64)',
+                backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // 威胁拦截图表
+    new Chart(document.getElementById('threatsChart'), {
+        type: 'bar',
+        data: {
+            labels: analyticsData.threats.map(d => d.timestamp),
+            datasets: [{
+                label: '威胁拦截',
+                data: analyticsData.threats.map(d => d.value),
+                backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                borderColor: 'rgb(255, 99, 132)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 5
+                    }
+                }
+            }
+        }
+    });
+</script>
+</main>
+
+<script src="/static/js/htmx.min.js"></script>
+<script src="/static/js/alpine.min.js"></script>
+<script src="/static/js/chart.min.js"></script>
+</body>
+</html>

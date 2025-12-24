@@ -1,0 +1,183 @@
+# Authentication
+login_title:
+  other: "Login"
+login_email_label:
+  other: "Cloudflare Email"
+login_apikey_label:
+  other: "Global API Key"
+login_remember:
+  other: "Remember me"
+login_button:
+  other: "Login"
+logout:
+  other: "Logout"
+
+# Navigation
+nav_zones:
+  other: "Domains"
+nav_security:
+  other: "Security"
+
+# Zone Management
+zones_title:
+  other: "Domain List"
+zone_add:
+  other: "Add Domain"
+zone_name:
+  other: "Domain Name"
+zone_status:
+  other: "Status"
+zone_actions:
+  other: "Actions"
+zone_manage_dns:
+  other: "Manage DNS"
+zone_security:
+  other: "Security"
+zone_active:
+  other: "Active"
+zone_pending:
+  other: "Pending"
+zone_add_title:
+  other: "Add Domain"
+zone_add_placeholder:
+  other: "example.com"
+zone_add_hint:
+  other: "Enter your domain name (without www)"
+zone_add_button:
+  other: "Add Domain"
+zone_add_success:
+  other: "Domain added successfully"
+zone_ns_servers:
+  other: "Name Servers"
+zone_ns_hint:
+  other: "Please point your domain's NS records to the servers above"
+
+# DNS Records
+dns_records:
+  other: "DNS Records"
+dns_add_record:
+  other: "Add Record"
+dns_edit_record:
+  other: "Edit DNS Record"
+dns_type:
+  other: "Type"
+dns_name:
+  other: "Name"
+dns_content:
+  other: "Content"
+dns_ttl:
+  other: "TTL"
+dns_ttl_auto:
+  other: "Auto"
+dns_cdn:
+  other: "CDN"
+dns_actions:
+  other: "Actions"
+dns_edit:
+  other: "Edit"
+dns_delete:
+  other: "Delete"
+dns_delete_confirm:
+  other: "Are you sure you want to delete this record?"
+dns_proxy_enabled:
+  other: "Cloudflare Proxy Enabled (Orange Cloud)"
+dns_proxy_disabled:
+  other: "Cloudflare Proxy Disabled (Grey Cloud)"
+dns_proxy_click_enable:
+  other: "Click to enable proxy"
+dns_proxy_click_disable:
+  other: "Click to disable proxy"
+dns_no_records:
+  other: "No DNS records yet."
+dns_add_first:
+  other: "Add your first record"
+dns_priority:
+  other: "Priority"
+dns_save:
+  other: "Save"
+dns_cancel:
+  other: "Cancel"
+
+# Special DNS Record Fields
+dns_caa_tag:
+  other: "Tag"
+dns_caa_value:
+  other: "Value"
+dns_srv_service:
+  other: "Service"
+dns_srv_protocol:
+  other: "Protocol"
+dns_srv_priority:
+  other: "Priority"
+dns_srv_weight:
+  other: "Weight"
+dns_srv_port:
+  other: "Port"
+dns_srv_target:
+  other: "Target"
+
+# Security
+security_title:
+  other: "Security Settings"
+security_ssl:
+  other: "SSL/TLS Certificate Validation"
+security_ssl_type:
+  other: "Validation Type"
+security_ssl_status:
+  other: "Status"
+security_ssl_details:
+  other: "Details"
+security_ssl_unavailable:
+  other: "SSL certificate validation information is currently unavailable. Cloudflare's Universal SSL automatically protects your domain."
+security_ssl_hint:
+  other: "Cloudflare automatically issues SSL/TLS certificates for your domain. If using Full or Full (Strict) SSL mode, ensure your origin server has a valid SSL certificate."
+security_dnssec:
+  other: "DNSSEC Settings"
+security_dnssec_status:
+  other: "Current Status"
+security_dnssec_enabled:
+  other: "DNSSEC Enabled"
+security_dnssec_disabled:
+  other: "DNSSEC Disabled"
+security_dnssec_ds_record:
+  other: "DS Record"
+security_dnssec_dnskey:
+  other: "DNSKEY"
+security_dnssec_note:
+  other: "Note: Add the DS record above to your domain registrar to complete DNSSEC setup."
+security_dnssec_operations:
+  other: "DNSSEC Operations"
+security_dnssec_warning:
+  other: "Warning: Understand the risks before modifying DNSSEC settings. Incorrect DNSSEC configuration may prevent your domain from resolving."
+security_dnssec_enable:
+  other: "Enable DNSSEC"
+security_dnssec_disable:
+  other: "Disable DNSSEC"
+security_dnssec_enable_confirm:
+  other: "Are you sure you want to enable DNSSEC? You'll need to configure the DS record at your domain registrar."
+security_dnssec_disable_confirm:
+  other: "Are you sure you want to disable DNSSEC?"
+security_dnssec_what:
+  other: "What is DNSSEC?"
+security_dnssec_description:
+  other: "DNSSEC (Domain Name System Security Extensions) adds an extra layer of security to DNS queries, protecting against DNS spoofing and cache poisoning attacks. After enabling DNSSEC, you need to configure the DS record at your domain registrar to complete verification."
+
+# Common
+back_to_zones:
+  other: "Back to Domain List"
+back_to_dns:
+  other: "Back to DNS Management"
+page:
+  other: "Page"
+previous_page:
+  other: "Previous"
+next_page:
+  other: "Next"
+submit:
+  other: "Submit"
+cancel:
+  other: "Cancel"
+error:
+  other: "Error"
+success:
+  other: "Success"

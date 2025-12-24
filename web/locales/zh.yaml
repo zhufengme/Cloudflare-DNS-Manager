@@ -1,0 +1,183 @@
+# 认证
+login_title:
+  other: "登录"
+login_email_label:
+  other: "Cloudflare 邮箱"
+login_apikey_label:
+  other: "Global API Key"
+login_remember:
+  other: "记住我"
+login_button:
+  other: "登录"
+logout:
+  other: "登出"
+
+# 导航
+nav_zones:
+  other: "域名管理"
+nav_security:
+  other: "安全设置"
+
+# 域名管理
+zones_title:
+  other: "域名列表"
+zone_add:
+  other: "添加域名"
+zone_name:
+  other: "域名"
+zone_status:
+  other: "状态"
+zone_actions:
+  other: "操作"
+zone_manage_dns:
+  other: "管理 DNS"
+zone_security:
+  other: "安全"
+zone_active:
+  other: "活跃"
+zone_pending:
+  other: "待处理"
+zone_add_title:
+  other: "添加域名"
+zone_add_placeholder:
+  other: "example.com"
+zone_add_hint:
+  other: "请输入您的域名（不包含 www）"
+zone_add_button:
+  other: "添加域名"
+zone_add_success:
+  other: "域名添加成功"
+zone_ns_servers:
+  other: "NS 服务器"
+zone_ns_hint:
+  other: "请将您的域名 NS 记录指向以上服务器"
+
+# DNS 记录
+dns_records:
+  other: "DNS 记录"
+dns_add_record:
+  other: "添加记录"
+dns_edit_record:
+  other: "编辑 DNS 记录"
+dns_type:
+  other: "类型"
+dns_name:
+  other: "名称"
+dns_content:
+  other: "内容"
+dns_ttl:
+  other: "TTL"
+dns_ttl_auto:
+  other: "自动"
+dns_cdn:
+  other: "CDN"
+dns_actions:
+  other: "操作"
+dns_edit:
+  other: "编辑"
+dns_delete:
+  other: "删除"
+dns_delete_confirm:
+  other: "确定删除此记录吗？"
+dns_proxy_enabled:
+  other: "启用 Cloudflare 代理（橙色云朵）"
+dns_proxy_disabled:
+  other: "禁用 Cloudflare 代理（灰色云朵）"
+dns_proxy_click_enable:
+  other: "点击启用代理"
+dns_proxy_click_disable:
+  other: "点击禁用代理"
+dns_no_records:
+  other: "还没有 DNS 记录。"
+dns_add_first:
+  other: "添加第一条记录"
+dns_priority:
+  other: "优先级"
+dns_save:
+  other: "保存"
+dns_cancel:
+  other: "取消"
+
+# 特殊 DNS 记录字段
+dns_caa_tag:
+  other: "标签"
+dns_caa_value:
+  other: "值"
+dns_srv_service:
+  other: "服务"
+dns_srv_protocol:
+  other: "协议"
+dns_srv_priority:
+  other: "优先级"
+dns_srv_weight:
+  other: "权重"
+dns_srv_port:
+  other: "端口"
+dns_srv_target:
+  other: "目标"
+
+# 安全设置
+security_title:
+  other: "安全设置"
+security_ssl:
+  other: "SSL/TLS 证书验证"
+security_ssl_type:
+  other: "验证类型"
+security_ssl_status:
+  other: "状态"
+security_ssl_details:
+  other: "详情"
+security_ssl_unavailable:
+  other: "SSL 证书验证信息当前不可用。Cloudflare 的通用 SSL 证书会自动为您的域名提供保护。"
+security_ssl_hint:
+  other: "Cloudflare 会为您的域名自动颁发 SSL/TLS 证书。如果您使用的是 Full 或 Full (Strict) SSL 模式，请确保您的源服务器也安装了有效的 SSL 证书。"
+security_dnssec:
+  other: "DNSSEC 设置"
+security_dnssec_status:
+  other: "当前状态"
+security_dnssec_enabled:
+  other: "DNSSEC 已启用"
+security_dnssec_disabled:
+  other: "DNSSEC 已禁用"
+security_dnssec_ds_record:
+  other: "DS 记录"
+security_dnssec_dnskey:
+  other: "DNSKEY"
+security_dnssec_note:
+  other: "注意：请将上述 DS 记录添加到您的域名注册商处以完成 DNSSEC 设置。"
+security_dnssec_operations:
+  other: "DNSSEC 操作"
+security_dnssec_warning:
+  other: "警告：在修改 DNSSEC 设置之前，请确保您了解相关风险。错误的 DNSSEC 配置可能导致域名无法解析。"
+security_dnssec_enable:
+  other: "启用 DNSSEC"
+security_dnssec_disable:
+  other: "禁用 DNSSEC"
+security_dnssec_enable_confirm:
+  other: "确定要启用 DNSSEC 吗？启用后需要在域名注册商处配置 DS 记录。"
+security_dnssec_disable_confirm:
+  other: "确定要禁用 DNSSEC 吗？"
+security_dnssec_what:
+  other: "什么是 DNSSEC？"
+security_dnssec_description:
+  other: "DNSSEC（域名系统安全扩展）为 DNS 查询添加了一层安全保护，防止 DNS 欺骗和缓存投毒攻击。启用 DNSSEC 后，您需要在域名注册商处配置 DS 记录以完成验证。"
+
+# 通用
+back_to_zones:
+  other: "返回域名列表"
+back_to_dns:
+  other: "返回 DNS 管理"
+page:
+  other: "页"
+previous_page:
+  other: "上一页"
+next_page:
+  other: "下一页"
+submit:
+  other: "提交"
+cancel:
+  other: "取消"
+error:
+  other: "错误"
+success:
+  other: "成功"

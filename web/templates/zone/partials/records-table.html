@@ -1,0 +1,42 @@
+{{range .Records}}
+<tr>
+    <td><span class="badge bg-info">{{.Type}}</span></td>
+    <td><code>{{.Name}}</code></td>
+    <td>{{.Content}}</td>
+    <td>{{if eq .TTL 1}}自动{{else}}{{.TTL}}{{end}}</td>
+    <td>
+        {{if or (eq .Type "A") (eq .Type "AAAA") (eq .Type "CNAME")}}
+            {{if .Proxied}}
+            <img src="/static/images/cloud_on.png"
+                 height="19"
+                 hx-post="/api/dns/{{.ID}}/toggle-proxy?zoneid={{$.ZoneID}}"
+                 hx-trigger="click"
+                 hx-swap="outerHTML"
+                 style="cursor:pointer;"
+                 title="点击禁用代理" />
+            {{else}}
+            <img src="/static/images/cloud_off.png"
+                 height="30"
+                 hx-post="/api/dns/{{.ID}}/toggle-proxy?zoneid={{$.ZoneID}}"
+                 hx-trigger="click"
+                 hx-swap="outerHTML"
+                 style="cursor:pointer;"
+                 title="点击启用代理" />
+            {{end}}
+        {{else}}
+        <img src="/static/images/cloud_off.png" height="30" style="opacity:0.3;" />
+        {{end}}
+    </td>
+    <td>
+        <a href="/dns/edit?zoneid={{$.ZoneID}}&domain={{$.Domain}}&recordid={{.ID}}"
+           class="btn btn-sm btn-warning">编辑</a>
+        <a href="/dns/delete?zoneid={{$.ZoneID}}&domain={{$.Domain}}&delete={{.ID}}"
+           class="btn btn-sm btn-danger"
+           onclick="return confirm('确定删除 {{.Name}} 吗？')">删除</a>
+    </td>
+</tr>
+{{else}}
+<tr>
+    <td colspan="6" class="text-center text-muted">未找到匹配的 DNS 记录</td>
+</tr>
+{{end}}

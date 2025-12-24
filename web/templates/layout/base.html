@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{.PageTitle}} - Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/custom.css">
+</head>
+<body class="bg-light">
+    {{if .ShowNav}}
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">{{.AppTitle}}</a>
+            <div class="d-flex">
+                <span class="navbar-text text-light me-3">
+                    {{.CurrentPage}}
+                </span>
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+    {{end}}
+
+    <main role="main" class="container my-4">
+        {{embed}}
+    </main>
+
+    <footer class="footer mt-auto py-3 bg-light">
+        <div class="container text-center text-muted">
+            <small>
+                Powered by <a href="https://www.cloudflare.com" target="_blank">Cloudflare</a> |
+                <a href="https://github.com" target="_blank">GitHub</a>
+            </small>
+        </div>
+    </footer>
+
+    <script src="/static/js/htmx.min.js"></script>
+    <script src="/static/js/alpine.min.js"></script>
+</body>
+</html>

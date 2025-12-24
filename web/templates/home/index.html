@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare DNS Manager - 专业的 Cloudflare 管理面板</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --gradient-start: #667eea;
+            --gradient-end: #764ba2;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+            color: white;
+            padding: 80px 0 100px;
+            position: relative;
+            overflow: hidden;
+            min-height: 600px;
+            display: flex;
+            align-items: center;
+        }
+
+        .hero::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-left h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .hero-left p.lead {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.95;
+        }
+
+        .hero-left .feature-highlight {
+            list-style: none;
+            padding: 0;
+            margin: 2rem 0;
+        }
+
+        .hero-left .feature-highlight li {
+            padding: 0.6rem 0;
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+
+        .hero-left .feature-highlight li::before {
+            content: "✓ ";
+            font-weight: bold;
+            margin-right: 0.5rem;
+            color: #a8ff78;
+        }
+
+        /* Login Card */
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            color: #2c3e50;
+        }
+
+        .login-card h2 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-card .login-subtitle {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .login-card .form-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .login-card .form-control {
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .login-card .form-control:focus {
+            border-color: var(--gradient-start);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .login-card .btn-login {
+            width: 100%;
+            padding: 0.85rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .login-card .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-card .alert {
+            border-radius: 10px;
+            border: none;
+        }
+
+        .security-notice {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            position: relative;
+            display: block;
+        }
+
+        .security-notice.hidden {
+            display: none;
+        }
+
+        .security-notice strong {
+            color: #856404;
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+
+        .security-notice ul {
+            margin: 0.5rem 0 0 0;
+            padding-left: 1.5rem;
+            color: #856404;
+        }
+
+        .security-notice li {
+            margin: 0.2rem 0;
+        }
+
+        .security-notice .close-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #856404;
+            cursor: pointer;
+            padding: 0;
+            width: 28px;
+            height: 28px;
+            line-height: 24px;
+            text-align: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .security-notice .close-btn:hover {
+            background: rgba(0,0,0,0.1);
+            color: #533f03;
+        }
+
+        .hero .btn-hero {
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .hero .btn-hero:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.8);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 80px 0;
+            background: #f8f9fa;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .section-subtitle {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            margin-bottom: 3rem;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            height: 100%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+
+        .feature-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+        }
+
+        .feature-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .feature-description {
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 1rem;
+        }
+
+        .feature-list li {
+            padding: 0.3rem 0;
+            color: #555;
+        }
+
+        .feature-list li::before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        /* Stats Section */
+        .stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* CTA Section */
+        .cta {
+            padding: 80px 0;
+            background: #fff;
+        }
+
+        .cta-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+        }
+
+        .cta-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .cta-subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+        }
+
+        /* Footer */
+        .footer {
+            background: #2c3e50;
+            color: white;
+            padding: 40px 0;
+            text-align: center;
+        }
+
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            color: #5dade2;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fadeInUp {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero {
+                padding: 60px 0;
+                min-height: auto;
+            }
+            .hero-left h1 {
+                font-size: 2.5rem;
+            }
+            .hero-left p.lead {
+                font-size: 1.2rem;
+            }
+            .hero-left .feature-highlight {
+                font-size: 1rem;
+            }
+            .login-card {
+                margin-top: 2rem;
+                padding: 2rem;
+            }
+            .section-title {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="container">
+            <div class="row hero-content align-items-center">
+                <!-- Left Side: Brand Introduction -->
+                <div class="col-lg-7 hero-left animate-fadeInUp">
+                    <h1>Cloudflare DNS Manager</h1>
+                    <p class="lead">更快、更易用的 Cloudflare 管理面板</p>
+                    <p class="mb-3">专为解决国内访问慢、操作繁琐、CNAME 接入配置难等问题而生</p>
+
+                    <ul class="feature-highlight">
+                        <li>🚀 <strong>告别访问慢</strong>：国内服务器部署，秒开管理面板</li>
+                        <li>🎯 <strong>支持 CNAME Setup</strong>：官方不支持的合作伙伴模式配置</li>
+                        <li>⚡ <strong>操作更高效</strong>：批量操作、配置模板、一键清除缓存</li>
+                        <li>🔒 <strong>功能更完整</strong>：SSL 证书管理、DNSSEC、性能优化</li>
+                        <li>💎 <strong>100% 开源</strong>：自由部署，完全免费，无使用限制</li>
+                    </ul>
+
+                    <a href="#features" class="btn btn-outline-light btn-hero btn-lg">了解更多功能 →</a>
+                </div>
+
+                <!-- Right Side: Login Form -->
+                <div class="col-lg-5 animate-fadeInUp">
+                    <div class="login-card">
+                        <h2>登录面板</h2>
+                        <p class="login-subtitle">使用您的 Cloudflare Global API Key 登录</p>
+
+                        <!-- Security Notice -->
+                        <div class="security-notice" id="securityNotice">
+                            <button class="close-btn" onclick="closeSecurityNotice()" title="7天内不再显示">&times;</button>
+                            <strong>🔒 安全声明</strong>
+                            本应用采用会话存储机制，您的 API Key 将：
+                            <ul>
+                                <li>✓ 仅保存在服务器内存中（不写入磁盘）</li>
+                                <li>✓ 随浏览器关闭自动清除（未勾选"记住我"）</li>
+                                <li>✗ 不会永久保存到数据库或日志文件</li>
+                            </ul>
+                            <strong style="color: #d9534f;">⚠️ 风险提示：</strong>提供 API Key 意味着授予完整的账户操作权限，请确保您信任此服务的部署方。
+                        </div>
+
+                        {{if .Error}}
+                        <div class="alert alert-danger">
+                            <strong>错误：</strong> {{.Error}}
+                        </div>
+                        {{end}}
+
+                        <form method="POST" action="/login">
+                            <div class="mb-3">
+                                <label for="cloudflare_email" class="form-label">Cloudflare 邮箱</label>
+                                <input type="email" class="form-control" id="cloudflare_email"
+                                       name="cloudflare_email" placeholder="your@email.com" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="cloudflare_api" class="form-label">Global API Key</label>
+                                <input type="password" class="form-control" id="cloudflare_api"
+                                       name="cloudflare_api" placeholder="输入您的 API Key" required>
+                                <small class="form-text text-muted">
+                                    在 <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank">Cloudflare Dashboard</a> 获取
+                                </small>
+                            </div>
+
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                                <label class="form-check-label" for="remember">
+                                    记住我（365 天）
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-login">
+                                立即登录
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3 col-6">
+                    <div class="stat-item">
+                        <div class="stat-number">8+</div>
+                        <div class="stat-label">核心功能模块</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stat-item">
+                        <div class="stat-number">50+</div>
+                        <div class="stat-label">API 端点</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stat-item">
+                        <div class="stat-number">100%</div>
+                        <div class="stat-label">开源免费</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stat-item">
+                        <div class="stat-number">∞</div>
+                        <div class="stat-label">域名管理</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="section-title">强大的功能特性</h2>
+                <p class="section-subtitle">涵盖 Cloudflare 管理的方方面面，让您的工作更加高效</p>
+            </div>
+
+            <div class="row g-4">
+                <!-- DNS 管理 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">🌐</div>
+                        <h3 class="feature-title">DNS 记录管理</h3>
+                        <p class="feature-description">完整的 DNS 记录 CRUD 操作，支持所有记录类型</p>
+                        <ul class="feature-list">
+                            <li>支持 A/AAAA/CNAME/MX/TXT/NS/SRV/CAA</li>
+                            <li>一键开启/关闭 CDN 代理</li>
+                            <li>实时搜索和过滤</li>
+                            <li>记录统计面板</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- SSL 证书管理 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3 class="feature-title">SSL 证书管理</h3>
+                        <p class="feature-description">全面的证书生命周期管理</p>
+                        <ul class="feature-list">
+                            <li>查看边缘证书详情</li>
+                            <li>创建免费 15 年回源证书</li>
+                            <li>一键下载 PEM 格式证书</li>
+                            <li>证书撤销和续期提醒</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Zone 设置 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">⚙️</div>
+                        <h3 class="feature-title">Zone 设置管理</h3>
+                        <p class="feature-description">一站式配置您的 Zone 设置</p>
+                        <ul class="feature-list">
+                            <li>开发模式一键切换</li>
+                            <li>SSL/TLS 模式选择</li>
+                            <li>性能优化（Minify、Brotli、HTTP/3）</li>
+                            <li>安全级别调整</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 缓存管理 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3 class="feature-title">缓存清除</h3>
+                        <p class="feature-description">灵活的缓存清除策略</p>
+                        <ul class="feature-list">
+                            <li>清除所有缓存</li>
+                            <li>按 URL 清除</li>
+                            <li>按主机名清除</li>
+                            <li>按前缀/Tag 清除（企业）</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 配置模板 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3 class="feature-title">配置预设模板</h3>
+                        <p class="feature-description">一键应用最佳实践配置</p>
+                        <ul class="feature-list">
+                            <li>WordPress 优化</li>
+                            <li>静态网站优化</li>
+                            <li>API 服务优化</li>
+                            <li>电商网站 / 开发环境</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 安全功能 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">🛡️</div>
+                        <h3 class="feature-title">安全设置</h3>
+                        <p class="feature-description">全方位保护您的网站</p>
+                        <ul class="feature-list">
+                            <li>DNSSEC 管理</li>
+                            <li>SSL 验证信息</li>
+                            <li>安全级别调整</li>
+                            <li>TLS 最低版本设置</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 多域名管理 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">🏢</div>
+                        <h3 class="feature-title">多域名管理</h3>
+                        <p class="feature-description">统一管理所有域名</p>
+                        <ul class="feature-list">
+                            <li>域名列表和分页</li>
+                            <li>Full Setup / CNAME Setup 支持</li>
+                            <li>域名状态实时监控</li>
+                            <li>快速切换域名</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 用户体验 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">✨</div>
+                        <h3 class="feature-title">现代化 UI</h3>
+                        <p class="feature-description">流畅的用户体验</p>
+                        <ul class="feature-list">
+                            <li>响应式设计，支持移动端</li>
+                            <li>HTMX 无刷新交互</li>
+                            <li>实时消息提醒</li>
+                            <li>快速导航和搜索</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 开源免费 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card">
+                        <div class="feature-icon">💎</div>
+                        <h3 class="feature-title">开源免费</h3>
+                        <p class="feature-description">完全开源，自由部署</p>
+                        <ul class="feature-list">
+                            <li>100% 开源代码</li>
+                            <li>无使用限制</li>
+                            <li>可自行部署</li>
+                            <li>持续更新维护</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="container">
+            <div class="cta-box">
+                <h2 class="cta-title">告别 Cloudflare Dashboard 的烦恼</h2>
+                <p class="cta-subtitle">国内访问慢？CNAME 接入配置难？操作繁琐重复？<br>
+                现在，只需一个 Cloudflare API Key，即可享受更快、更强、更易用的管理体验</p>
+                <a href="#hero" class="btn btn-light btn-lg btn-hero" style="scroll-behavior: smooth;">立即开始使用</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p class="mb-2">&copy; 2025 Cloudflare DNS Manager - 更快、更易用的 Cloudflare 管理面板</p>
+            <p class="mb-2">专为解决国内访问慢、CNAME 接入配置难等痛点而生 | 100% 开源免费</p>
+            <p class="mb-0">
+                <a href="https://github.com/yourusername/cloudflare-cname-go" target="_blank">GitHub 开源仓库</a> |
+                <a href="https://developers.cloudflare.com/api/" target="_blank">Cloudflare API 文档</a> |
+                <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank">获取 API Key</a>
+            </p>
+            <p class="mt-2 mb-0" style="font-size: 0.85rem; opacity: 0.7;">
+                Built with Go + Fiber + Bootstrap | Not affiliated with Cloudflare, Inc.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // 安全声明关闭功能
+        function closeSecurityNotice() {
+            const notice = document.getElementById('securityNotice');
+            if (notice) {
+                notice.classList.add('hidden');
+
+                // 设置 localStorage，7天后过期
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + 7);
+                localStorage.setItem('securityNoticeClosed', expiryDate.getTime());
+            }
+        }
+
+        // 页面加载时检查是否应该隐藏安全声明
+        document.addEventListener('DOMContentLoaded', function() {
+            const notice = document.getElementById('securityNotice');
+            if (notice) {
+                const closedTime = localStorage.getItem('securityNoticeClosed');
+                if (closedTime) {
+                    const expiryDate = new Date(parseInt(closedTime));
+                    const now = new Date();
+
+                    // 如果还在7天内，隐藏安全声明
+                    if (now < expiryDate) {
+                        notice.classList.add('hidden');
+                    } else {
+                        // 过期了，清除 localStorage
+                        localStorage.removeItem('securityNoticeClosed');
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

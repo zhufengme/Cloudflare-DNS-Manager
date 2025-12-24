@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{.Domain}} - 安全设置</h2>
+    <a href="/zone?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-secondary">返回 DNS 管理</a>
+</div>
+
+{{if .Error}}
+<div class="alert alert-danger">{{.Error}}</div>
+{{end}}
+
+{{if eq (index (default dict .Params) "success") "dnssec_updated"}}
+<div class="alert alert-success">DNSSEC 设置已更新</div>
+{{end}}
+
+<!-- SSL 证书验证 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">SSL/TLS 证书验证</h5>
+    </div>
+    <div class="card-body">
+        {{if .SSLRecords}}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>验证类型</th>
+                        <th>状态</th>
+                        <th>详情</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .SSLRecords}}
+                    <tr>
+                        <td><span class="badge bg-info">{{.ValidationMethod}}</span></td>
+                        <td>
+                            {{if eq .Status "active"}}
+                                <span class="badge bg-success">已激活</span>
+                            {{else if eq .Status "pending"}}
+                                <span class="badge bg-warning">待验证</span>
+                            {{else}}
+                                <span class="badge bg-secondary">{{.Status}}</span>
+                            {{end}}
+                        </td>
+                        <td>
+                            {{if eq .ValidationMethod "http"}}
+                                <small><strong>URL:</strong> <code>{{.HTTPUrl}}</code></small><br>
+                                <small><strong>Body:</strong> <code>{{.HTTPBody}}</code></small>
+                            {{else if eq .ValidationMethod "cname"}}
+                                <small><strong>记录名:</strong> <code>{{.CNAMEName}}</code></small><br>
+                                <small><strong>目标:</strong> <code>{{.CNAMETarget}}</code></small>
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{else}}
+        <div class="alert alert-info">
+            SSL 证书验证信息当前不可用。Cloudflare 的通用 SSL 证书会自动为您的域名提供保护。
+        </div>
+        {{end}}
+
+        <hr>
+
+        <div class="alert alert-light">
+            <strong>提示:</strong> Cloudflare 会为您的域名自动颁发 SSL/TLS 证书。如果您使用的是 Full 或 Full (Strict) SSL 模式，
+            请确保您的源服务器也安装了有效的 SSL 证书。
+        </div>
+    </div>
+</div>
+
+<!-- DNSSEC 设置 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">DNSSEC 设置</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>当前状态</h6>
+                <p>
+                    {{if .DNSSEC}}
+                        {{if eq .DNSSEC.Status "active"}}
+                            <span class="badge bg-success fs-6">DNSSEC 已启用</span>
+                        {{else}}
+                            <span class="badge bg-secondary fs-6">DNSSEC 已禁用</span>
+                        {{end}}
+                    {{else}}
+                        <span class="badge bg-secondary fs-6">DNSSEC 已禁用</span>
+                    {{end}}
+                </p>
+
+                {{if and .DNSSEC .DNSSEC.DNSSECPresent}}
+                <div class="mt-3">
+                    <h6>DS 记录</h6>
+                    <div class="bg-light p-3 rounded">
+                        <small><code>{{.DNSSEC.DS}}</code></small>
+                    </div>
+
+                    {{if .DNSSEC.DNSKey}}
+                    <h6 class="mt-3">DNSKEY</h6>
+                    <div class="bg-light p-3 rounded">
+                        <small><code>{{.DNSSEC.DNSKey}}</code></small>
+                    </div>
+                    {{end}}
+
+                    <div class="alert alert-info mt-3">
+                        <strong>注意:</strong> 请将上述 DS 记录添加到您的域名注册商处以完成 DNSSEC 设置。
+                    </div>
+                </div>
+                {{end}}
+            </div>
+
+            <div class="col-md-6">
+                <h6>DNSSEC 操作</h6>
+                <div class="alert alert-warning">
+                    <strong>警告:</strong> 在修改 DNSSEC 设置之前，请确保您了解相关风险。
+                    错误的 DNSSEC 配置可能导致域名无法解析。
+                </div>
+
+                <form method="POST" action="/security/dnssec">
+                    <input type="hidden" name="zoneid" value="{{.ZoneID}}">
+                    <input type="hidden" name="domain" value="{{.Domain}}">
+
+                    {{if and .DNSSEC (eq .DNSSEC.Status "active")}}
+                        <input type="hidden" name="action" value="disable">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('确定要禁用 DNSSEC 吗？')">
+                            禁用 DNSSEC
+                        </button>
+                    {{else}}
+                        <input type="hidden" name="action" value="enable">
+                        <button type="submit" class="btn btn-success" onclick="return confirm('确定要启用 DNSSEC 吗？启用后需要在域名注册商处配置 DS 记录。')">
+                            启用 DNSSEC
+                        </button>
+                    {{end}}
+                </form>
+
+                <div class="mt-3">
+                    <h6>什么是 DNSSEC?</h6>
+                    <p class="small text-muted">
+                        DNSSEC（域名系统安全扩展）为 DNS 查询添加了一层安全保护，
+                        防止 DNS 欺骗和缓存投毒攻击。启用 DNSSEC 后，您需要在域名注册商处
+                        配置 DS 记录以完成验证。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="/zones" class="btn btn-secondary">返回域名列表</a>
+</div>
+</main>
+
+<script src="/static/js/htmx.min.js"></script>
+<script src="/static/js/alpine.min.js"></script>
+<script src="/static/js/chart.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Domain}} - SSL/TLS 证书 - Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <style>
+        .cert-card { margin-bottom: 1rem; }
+        .cert-badge { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
+        .days-warning { color: #dc3545; }
+        .days-ok { color: #198754; }
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: inline-block; }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{.Domain}} - SSL/TLS 证书管理</h2>
+    <a href="/zone?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-secondary">返回 DNS 管理</a>
+</div>
+
+{{if .Error}}
+<div class="alert alert-danger">{{.Error}}</div>
+{{end}}
+
+<div id="message-container"></div>
+
+<!-- 标签页导航 -->
+<ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link {{if eq .Tab "edge"}}active{{end}}"
+           href="/certificates?zoneid={{.ZoneID}}&domain={{.Domain}}&tab=edge">
+            边缘证书
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{if eq .Tab "origin"}}active{{end}}"
+           href="/certificates?zoneid={{.ZoneID}}&domain={{.Domain}}&tab=origin">
+            回源证书
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{if eq .Tab "custom"}}active{{end}}"
+           href="/certificates?zoneid={{.ZoneID}}&domain={{.Domain}}&tab=custom">
+            自定义证书
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content mt-3">
+    <!-- 边缘证书标签页 -->
+    {{if eq .Tab "edge"}}
+    <div class="tab-pane fade show active">
+        <p class="text-muted">边缘证书由 Cloudflare 自动管理，用于浏览器与 Cloudflare 之间的 HTTPS 连接。</p>
+
+        {{if .EdgeCertificates}}
+            {{range .EdgeCertificates}}
+            <div class="card cert-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-{{if eq .Type "universal"}}primary{{else if eq .Type "advanced"}}success{{else}}secondary{{end}} cert-badge">
+                            {{if eq .Type "universal"}}Universal SSL{{else if eq .Type "advanced"}}Advanced Certificate{{else}}{{.Type}}{{end}}
+                        </span>
+                        <strong class="ms-2">{{index .Hosts 0}}</strong>
+                    </div>
+                    <span class="badge bg-{{if eq .Status "active"}}success{{else if eq .Status "pending"}}warning{{else}}secondary{{end}}">
+                        {{if eq .Status "active"}}Active{{else if eq .Status "pending"}}Pending{{else}}{{.Status}}{{end}}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>域名覆盖:</strong></p>
+                            <ul class="list-unstyled">
+                                {{range .Hosts}}
+                                <li><code>{{.}}</code></li>
+                                {{end}}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>颁发机构:</strong> {{.CertificateAuthority}}</p>
+                            <p class="mb-1"><strong>有效期:</strong> {{.ValidityDays}} 天</p>
+                            <p class="mb-1"><strong>验证方式:</strong> {{.ValidationMethod}}</p>
+                            {{if .CloudflareBranding}}
+                            <p class="mb-1"><small class="text-muted">包含 Cloudflare 品牌</small></p>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{end}}
+        {{else}}
+            <div class="alert alert-info">没有找到边缘证书</div>
+        {{end}}
+    </div>
+    {{end}}
+
+    <!-- 回源证书标签页 -->
+    {{if eq .Tab "origin"}}
+    <div class="tab-pane fade show active">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <p class="text-muted mb-0">回源证书用于 Cloudflare 与您源站之间的 HTTPS 连接，由 Cloudflare 免费签发。</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createOriginCertModal">
+                创建新证书
+            </button>
+        </div>
+
+        {{if .OriginCertificates}}
+            {{range .OriginCertificates}}
+            <div class="card cert-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-info cert-badge">Origin Certificate</span>
+                        <strong class="ms-2">{{index .Hostnames 0}}{{if gt (len .Hostnames) 1}} +{{sub (len .Hostnames) 1}}{{end}}</strong>
+                    </div>
+                    {{if .RevokedAt.IsZero}}
+                        <span class="badge bg-success">Active</span>
+                    {{else}}
+                        <span class="badge bg-danger">Revoked</span>
+                    {{end}}
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>证书 ID:</strong> <code>{{.ID}}</code></p>
+                            <p class="mb-1"><strong>域名:</strong></p>
+                            <ul class="list-unstyled mb-2">
+                                {{range .Hostnames}}
+                                <li><code>{{.}}</code></li>
+                                {{end}}
+                            </ul>
+                            <p class="mb-1"><strong>类型:</strong> {{.RequestType}}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>到期时间:</strong> {{.ExpiresOn.Format "2006-01-02 15:04:05"}}</p>
+                            <p class="mb-1">
+                                <strong>剩余天数:</strong>
+                                {{$days := daysUntil .ExpiresOn}}
+                                {{if gt $days 365}}
+                                    <span class="badge bg-success">{{$days}} 天</span>
+                                {{else if gt $days 30}}
+                                    <span class="badge bg-warning">{{$days}} 天</span>
+                                {{else}}
+                                    <span class="badge bg-danger">{{$days}} 天</span>
+                                {{end}}
+                            </p>
+                            {{if not .RevokedAt.IsZero}}
+                            <p class="mb-1"><strong>撤销时间:</strong> {{.RevokedAt.Format "2006-01-02 15:04:05"}}</p>
+                            {{end}}
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="/api/certificates/origin/{{.ID}}/download" class="btn btn-sm btn-success">
+                            下载证书 (.pem)
+                        </a>
+                        {{if .RevokedAt.IsZero}}
+                        <button class="btn btn-sm btn-danger"
+                                hx-post="/api/certificates/origin/{{.ID}}/revoke"
+                                hx-confirm="确定要撤销此证书吗？撤销后无法恢复！"
+                                hx-swap="none"
+                                hx-on::after-request="if(event.detail.successful) {
+                                    showMessage('证书已撤销', 'success');
+                                    setTimeout(() => window.location.reload(), 1500);
+                                } else {
+                                    showMessage('撤销失败', 'danger');
+                                }">
+                            撤销证书
+                        </button>
+                        {{end}}
+                    </div>
+                </div>
+            </div>
+            {{end}}
+        {{else}}
+            <div class="alert alert-info">
+                还没有回源证书。<button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#createOriginCertModal">创建第一个证书</button>
+            </div>
+        {{end}}
+    </div>
+    {{end}}
+
+    <!-- 自定义证书标签页 -->
+    {{if eq .Tab "custom"}}
+    <div class="tab-pane fade show active">
+        <p class="text-muted">自定义证书允许您上传自己的 SSL 证书（需要 Business 及以上套餐）。</p>
+
+        {{if .CustomCertificates}}
+            {{range .CustomCertificates}}
+            <div class="card cert-card">
+                <div class="card-header">
+                    <span class="badge bg-secondary cert-badge">Custom SSL</span>
+                    <strong class="ms-2">{{index .Hosts 0}}</strong>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>证书 ID:</strong> <code>{{.ID}}</code></p>
+                    <p class="mb-1"><strong>域名:</strong> {{range .Hosts}}{{.}} {{end}}</p>
+                    <p class="mb-1"><strong>颁发者:</strong> {{.Issuer}}</p>
+                    <p class="mb-1"><strong>到期时间:</strong> {{.ExpiresOn}}</p>
+                </div>
+            </div>
+            {{end}}
+        {{else}}
+            <div class="alert alert-info">没有自定义证书（此功能需要 Business 及以上套餐）</div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+
+</main>
+
+<!-- 创建回源证书模态框 -->
+<div class="modal fade" id="createOriginCertModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">创建回源证书</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createCertForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">域名/主机名 <span class="text-danger">*</span></label>
+                        <input type="text" name="hostnames" class="form-control"
+                               placeholder="example.com, *.example.com (多个用逗号分隔)" required>
+                        <small class="text-muted">支持通配符，如 *.example.com</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">证书类型 <span class="text-danger">*</span></label>
+                        <select name="request_type" class="form-select" required>
+                            <option value="origin-rsa">RSA 2048 (推荐)</option>
+                            <option value="origin-ecc">ECC</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">有效期 <span class="text-danger">*</span></label>
+                        <select name="requested_validity" class="form-select" required>
+                            <option value="7">7 天（测试）</option>
+                            <option value="30">30 天</option>
+                            <option value="90">90 天</option>
+                            <option value="365">1 年</option>
+                            <option value="1825">5 年</option>
+                            <option value="5475" selected>15 年（推荐）</option>
+                        </select>
+                        <small class="text-muted">推荐选择 15 年，免费且无需频繁更新</small>
+                    </div>
+
+                    <div class="alert alert-info mb-0">
+                        <strong>提示：</strong>
+                        <ul class="mb-0">
+                            <li>创建后将自动生成私钥和证书</li>
+                            <li>请妥善保存下载的证书文件</li>
+                            <li>证书用于 Cloudflare 与源站之间的加密连接</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="htmx-indicator spinner-border spinner-border-sm"></span>
+                        创建证书
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/htmx.min.js"></script>
+<script src="/static/js/bootstrap.bundle.min.js"></script>
+<script>
+    function showMessage(message, type) {
+        const container = document.getElementById('message-container');
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alert);
+
+        setTimeout(() => {
+            alert.remove();
+        }, 3000);
+    }
+
+    // Helper function for daysUntil
+    function daysUntil(dateStr) {
+        const targetDate = new Date(dateStr);
+        const now = new Date();
+        const diffTime = targetDate - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+    }
+
+    // 创建证书表单提交
+    document.getElementById('createCertForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.querySelector('.htmx-indicator').style.display = 'inline-block';
+
+        fetch('/api/certificates/origin/create?zoneid={{.ZoneID}}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage(data.message, 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showMessage(data.error || '创建失败', 'danger');
+                submitBtn.disabled = false;
+                submitBtn.querySelector('.htmx-indicator').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            showMessage('创建失败: ' + error, 'danger');
+            submitBtn.disabled = false;
+            submitBtn.querySelector('.htmx-indicator').style.display = 'none';
+        });
+    });
+</script>
+</body>
+</html>

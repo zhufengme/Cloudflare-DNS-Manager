@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Domain}} - Zone 设置 - Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <style>
+        .setting-card { margin-bottom: 1.5rem; }
+        .setting-item { padding: 1rem 0; border-bottom: 1px solid #dee2e6; }
+        .setting-item:last-child { border-bottom: none; }
+        .setting-label { font-weight: 500; margin-bottom: 0.25rem; }
+        .setting-desc { font-size: 0.875rem; color: #6c757d; }
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: inline-block; }
+        .htmx-request.htmx-indicator { display: inline-block; }
+
+        /* 快速导航条 */
+        .settings-nav {
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.75rem 0;
+            margin-bottom: 1rem;
+        }
+        .settings-nav .nav-link {
+            color: #495057;
+            padding: 0.5rem 1rem;
+        }
+        .settings-nav .nav-link:hover {
+            color: #0d6efd;
+        }
+
+        /* 危险区域样式 */
+        .danger-zone {
+            border: 2px solid #dc3545;
+        }
+        .danger-zone .card-header {
+            background-color: #dc3545;
+            border-bottom: 2px solid #bb2d3b;
+        }
+        .danger-item {
+            padding: 1.5rem;
+            border: 1px solid #f8d7da;
+            border-radius: 8px;
+            background-color: #fff5f5;
+        }
+        .danger-item .warning-text {
+            color: #721c24;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        .danger-item .danger-desc {
+            color: #856404;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        /* 删除确认模态框 */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        .delete-modal .modal-content {
+            border: 3px solid #dc3545;
+        }
+        .delete-modal .modal-header {
+            background-color: #dc3545;
+            color: white;
+        }
+        .delete-input {
+            font-family: monospace;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{.Domain}} - Zone 设置</h2>
+    <a href="/zone?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-secondary">返回 DNS 管理</a>
+</div>
+
+{{if .Error}}
+<div class="alert alert-danger">{{.Error}}</div>
+{{end}}
+
+<div id="message-container"></div>
+
+<!-- 快速导航 -->
+<div class="settings-nav">
+    <nav class="nav nav-pills">
+        <a class="nav-link" href="#cache-section">缓存</a>
+        <a class="nav-link" href="#ssl-section">SSL/TLS</a>
+        <a class="nav-link" href="#performance-section">性能</a>
+        <a class="nav-link" href="#security-section">安全</a>
+        <a class="nav-link text-danger" href="#danger-section">危险区域</a>
+    </nav>
+</div>
+
+<!-- 配置预设模板 -->
+<div class="card mb-3">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0"><i class="bi bi-magic"></i> 快速配置模板</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-3">选择适合您网站类型的配置模板，一键应用推荐设置</p>
+        <div class="row g-2">
+            <div class="col-md-2">
+                <button class="btn btn-outline-primary w-100"
+                        onclick="applyPreset('wordpress')"
+                        title="SSL=Full, 中等安全, 4小时缓存, 开启压缩优化">
+                    WordPress
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-success w-100"
+                        onclick="applyPreset('static')"
+                        title="SSL=Full, 低安全, 1年缓存, 最大化性能">
+                    静态网站
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-info w-100"
+                        onclick="applyPreset('api')"
+                        title="SSL=Strict, 高安全, 禁用缓存">
+                    API 服务
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-warning w-100"
+                        onclick="applyPreset('ecommerce')"
+                        title="SSL=Strict, 高安全, 2小时缓存">
+                    电商网站
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100"
+                        onclick="applyPreset('development')"
+                        title="禁用缓存和优化, 便于调试">
+                    开发环境
+                </button>
+            </div>
+        </div>
+        <small class="text-muted d-block mt-2">
+            <i class="bi bi-info-circle"></i> 提示：应用模板会覆盖当前配置，请谨慎选择
+        </small>
+    </div>
+</div>
+
+<!-- 缓存设置 -->
+<div class="card setting-card" id="cache-section">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-speedometer2"></i> 缓存设置</h5>
+    </div>
+    <div class="card-body">
+        <!-- 开发模式 -->
+        <div class="setting-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="setting-label">开发模式</div>
+                    <div class="setting-desc">临时绕过缓存，方便开发测试。自动在 3 小时后关闭。</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="dev-mode-switch"
+                           {{if eq (index .Settings "development_mode") "on"}}checked{{end}}
+                           hx-post="/api/settings/development_mode/toggle?zoneid={{.ZoneID}}"
+                           hx-vals='{"current": "{{index .Settings "development_mode"}}"}'
+                           hx-swap="none"
+                           hx-on::after-request="if(event.detail.successful) {
+                               let resp = JSON.parse(event.detail.xhr.response);
+                               showMessage(resp.message, 'success');
+                               this.checked = resp.value === 'on';
+                               this.setAttribute('hx-vals', JSON.stringify({current: resp.value}));
+                           } else {
+                               showMessage('操作失败', 'danger');
+                           }">
+                    <label class="form-check-label" for="dev-mode-switch">
+                        <span class="htmx-indicator spinner-border spinner-border-sm"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 清除缓存 -->
+        <div class="setting-item">
+            <div class="setting-label">清除缓存</div>
+            <div class="setting-desc mb-3">清除已缓存的内容，强制 Cloudflare 从源站重新获取。</div>
+
+            <div class="btn-group mb-3" role="group">
+                <button type="button" class="btn btn-danger"
+                        hx-post="/api/cache/purge?zoneid={{.ZoneID}}"
+                        hx-vals='{"type": "all"}'
+                        hx-swap="none"
+                        hx-confirm="确定要清除所有缓存吗？这可能导致源站流量突增。"
+                        hx-on::after-request="if(event.detail.successful) {
+                            let resp = JSON.parse(event.detail.xhr.response);
+                            showMessage(resp.message, 'success');
+                        } else {
+                            showMessage('清除失败', 'danger');
+                        }">
+                    <span class="htmx-indicator spinner-border spinner-border-sm"></span>
+                    清除所有缓存
+                </button>
+                <button type="button" class="btn btn-outline-warning" onclick="document.getElementById('url-purge-form').classList.toggle('d-none')">
+                    按 URL 清除
+                </button>
+            </div>
+
+            <div id="url-purge-form" class="d-none">
+                <form hx-post="/api/cache/purge?zoneid={{.ZoneID}}"
+                      hx-vals='{"type": "urls"}'
+                      hx-swap="none"
+                      hx-on::after-request="if(event.detail.successful) {
+                          let resp = JSON.parse(event.detail.xhr.response);
+                          showMessage(resp.message, 'success');
+                          this.reset();
+                      } else {
+                          let resp = JSON.parse(event.detail.xhr.response);
+                          showMessage(resp.error || '清除失败', 'danger');
+                      }">
+                    <div class="mb-2">
+                        <label class="form-label">URL 列表（每行一个）：</label>
+                        <textarea name="urls" class="form-control" rows="5"
+                                  placeholder="https://example.com/style.css&#10;https://example.com/script.js"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-warning">
+                        <span class="htmx-indicator spinner-border spinner-border-sm"></span>
+                        清除指定 URL
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 浏览器缓存 TTL -->
+        <div class="setting-item">
+            <div class="setting-label">浏览器缓存 TTL</div>
+            <div class="setting-desc mb-2">控制浏览器缓存静态资源的时间。</div>
+            <select class="form-select" style="max-width: 300px;"
+                    hx-post="/api/settings/browser_cache_ttl/update?zoneid={{.ZoneID}}"
+                    hx-trigger="change"
+                    hx-swap="none"
+                    hx-on::after-request="if(event.detail.successful) {
+                        showMessage('设置已更新', 'success');
+                    }">
+                <option value="0" {{if eq (index .Settings "browser_cache_ttl") 0.0}}selected{{end}}>遵循源站</option>
+                <option value="30" {{if eq (index .Settings "browser_cache_ttl") 30.0}}selected{{end}}>30 秒</option>
+                <option value="60" {{if eq (index .Settings "browser_cache_ttl") 60.0}}selected{{end}}>1 分钟</option>
+                <option value="300" {{if eq (index .Settings "browser_cache_ttl") 300.0}}selected{{end}}>5 分钟</option>
+                <option value="1200" {{if eq (index .Settings "browser_cache_ttl") 1200.0}}selected{{end}}>20 分钟</option>
+                <option value="1800" {{if eq (index .Settings "browser_cache_ttl") 1800.0}}selected{{end}}>30 分钟</option>
+                <option value="3600" {{if eq (index .Settings "browser_cache_ttl") 3600.0}}selected{{end}}>1 小时</option>
+                <option value="7200" {{if eq (index .Settings "browser_cache_ttl") 7200.0}}selected{{end}}>2 小时</option>
+                <option value="10800" {{if eq (index .Settings "browser_cache_ttl") 10800.0}}selected{{end}}>3 小时</option>
+                <option value="14400" {{if eq (index .Settings "browser_cache_ttl") 14400.0}}selected{{end}}>4 小时</option>
+                <option value="18000" {{if eq (index .Settings "browser_cache_ttl") 18000.0}}selected{{end}}>5 小时</option>
+                <option value="28800" {{if eq (index .Settings "browser_cache_ttl") 28800.0}}selected{{end}}>8 小时</option>
+                <option value="43200" {{if eq (index .Settings "browser_cache_ttl") 43200.0}}selected{{end}}>12 小时</option>
+                <option value="57600" {{if eq (index .Settings "browser_cache_ttl") 57600.0}}selected{{end}}>16 小时</option>
+                <option value="72000" {{if eq (index .Settings "browser_cache_ttl") 72000.0}}selected{{end}}>20 小时</option>
+                <option value="86400" {{if eq (index .Settings "browser_cache_ttl") 86400.0}}selected{{end}}>1 天</option>
+                <option value="172800" {{if eq (index .Settings "browser_cache_ttl") 172800.0}}selected{{end}}>2 天</option>
+                <option value="259200" {{if eq (index .Settings "browser_cache_ttl") 259200.0}}selected{{end}}>3 天</option>
+                <option value="345600" {{if eq (index .Settings "browser_cache_ttl") 345600.0}}selected{{end}}>4 天</option>
+                <option value="432000" {{if eq (index .Settings "browser_cache_ttl") 432000.0}}selected{{end}}>5 天</option>
+                <option value="691200" {{if eq (index .Settings "browser_cache_ttl") 691200.0}}selected{{end}}>8 天</option>
+                <option value="1382400" {{if eq (index .Settings "browser_cache_ttl") 1382400.0}}selected{{end}}>16 天</option>
+                <option value="2678400" {{if eq (index .Settings "browser_cache_ttl") 2678400.0}}selected{{end}}>31 天</option>
+                <option value="5356800" {{if eq (index .Settings "browser_cache_ttl") 5356800.0}}selected{{end}}>2 个月</option>
+                <option value="16070400" {{if eq (index .Settings "browser_cache_ttl") 16070400.0}}selected{{end}}>6 个月</option>
+                <option value="31536000" {{if eq (index .Settings "browser_cache_ttl") 31536000.0}}selected{{end}}>1 年</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- SSL/TLS 设置 -->
+<div class="card setting-card" id="ssl-section">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-shield-lock"></i> SSL/TLS 设置</h5>
+    </div>
+    <div class="card-body">
+        <!-- SSL 模式 -->
+        <div class="setting-item">
+            <div class="setting-label">SSL/TLS 加密模式</div>
+            <div class="setting-desc mb-2">控制 Cloudflare 与源站之间的 HTTPS 连接方式。</div>
+            <select class="form-select" style="max-width: 400px;"
+                    hx-post="/api/settings/ssl/update?zoneid={{.ZoneID}}"
+                    hx-trigger="change"
+                    hx-swap="none"
+                    hx-on::after-request="if(event.detail.successful) {
+                        showMessage('SSL 模式已更新', 'success');
+                    }">
+                <option value="off" {{if eq (index .Settings "ssl") "off"}}selected{{end}}>Off - 不使用 HTTPS</option>
+                <option value="flexible" {{if eq (index .Settings "ssl") "flexible"}}selected{{end}}>Flexible - 访客到 Cloudflare 使用 HTTPS，Cloudflare 到源站使用 HTTP</option>
+                <option value="full" {{if eq (index .Settings "ssl") "full"}}selected{{end}}>Full - 全程 HTTPS，但不验证源站证书</option>
+                <option value="strict" {{if eq (index .Settings "ssl") "strict"}}selected{{end}}>Full (Strict) - 全程 HTTPS，验证源站证书（推荐）</option>
+            </select>
+        </div>
+
+        <!-- Always Online -->
+        <div class="setting-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="setting-label">Always Online</div>
+                    <div class="setting-desc">源站离线时，显示缓存的网页版本。</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           {{if eq (index .Settings "always_online") "on"}}checked{{end}}
+                           hx-post="/api/settings/always_online/update?zoneid={{.ZoneID}}"
+                           hx-vals='js:{value: this.checked ? "on" : "off"}'
+                           hx-trigger="change"
+                           hx-swap="none"
+                           hx-on::after-request="if(event.detail.successful) {
+                               showMessage('设置已更新', 'success');
+                           }">
+                </div>
+            </div>
+        </div>
+
+        <!-- TLS 最低版本 -->
+        <div class="setting-item">
+            <div class="setting-label">TLS 最低版本</div>
+            <div class="setting-desc mb-2">设置允许的最低 TLS 协议版本。</div>
+            <select class="form-select" style="max-width: 300px;"
+                    hx-post="/api/settings/min_tls_version/update?zoneid={{.ZoneID}}"
+                    hx-trigger="change"
+                    hx-swap="none"
+                    hx-on::after-request="if(event.detail.successful) {
+                        showMessage('设置已更新', 'success');
+                    }">
+                <option value="1.0" {{if eq (index .Settings "min_tls_version") "1.0"}}selected{{end}}>TLS 1.0（不推荐）</option>
+                <option value="1.1" {{if eq (index .Settings "min_tls_version") "1.1"}}selected{{end}}>TLS 1.1</option>
+                <option value="1.2" {{if eq (index .Settings "min_tls_version") "1.2"}}selected{{end}}>TLS 1.2（推荐）</option>
+                <option value="1.3" {{if eq (index .Settings "min_tls_version") "1.3"}}selected{{end}}>TLS 1.3（最安全）</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- 性能优化 -->
+<div class="card setting-card" id="performance-section">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-speedometer"></i> 性能优化</h5>
+    </div>
+    <div class="card-body">
+        <!-- Auto Minify -->
+        <div class="setting-item">
+            <div class="setting-label">Auto Minify</div>
+            <div class="setting-desc mb-2">自动压缩 HTML、CSS、JavaScript 文件大小。</div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="minify-html"
+                       {{if eq (index (index .Settings "minify") "html") "on"}}checked{{end}}
+                       onchange="updateMinify()">
+                <label class="form-check-label" for="minify-html">HTML</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="minify-css"
+                       {{if eq (index (index .Settings "minify") "css") "on"}}checked{{end}}
+                       onchange="updateMinify()">
+                <label class="form-check-label" for="minify-css">CSS</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="minify-js"
+                       {{if eq (index (index .Settings "minify") "js") "on"}}checked{{end}}
+                       onchange="updateMinify()">
+                <label class="form-check-label" for="minify-js">JavaScript</label>
+            </div>
+        </div>
+
+        <!-- Brotli -->
+        <div class="setting-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="setting-label">Brotli 压缩</div>
+                    <div class="setting-desc">使用 Brotli 算法压缩内容，比 Gzip 更高效。</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           {{if eq (index .Settings "brotli") "on"}}checked{{end}}
+                           hx-post="/api/settings/brotli/update?zoneid={{.ZoneID}}"
+                           hx-vals='js:{value: this.checked ? "on" : "off"}'
+                           hx-trigger="change"
+                           hx-swap="none"
+                           hx-on::after-request="if(event.detail.successful) {
+                               showMessage('设置已更新', 'success');
+                           }">
+                </div>
+            </div>
+        </div>
+
+        <!-- HTTP/2 -->
+        <div class="setting-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="setting-label">HTTP/2</div>
+                    <div class="setting-desc">启用 HTTP/2 协议，提升连接性能。</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           {{if eq (index .Settings "http2") "on"}}checked{{end}}
+                           hx-post="/api/settings/http2/update?zoneid={{.ZoneID}}"
+                           hx-vals='js:{value: this.checked ? "on" : "off"}'
+                           hx-trigger="change"
+                           hx-swap="none"
+                           hx-on::after-request="if(event.detail.successful) {
+                               showMessage('设置已更新', 'success');
+                           }">
+                </div>
+            </div>
+        </div>
+
+        <!-- HTTP/3 -->
+        <div class="setting-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="setting-label">HTTP/3 (QUIC)</div>
+                    <div class="setting-desc">启用最新的 HTTP/3 协议，基于 QUIC 传输。</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           {{if eq (index .Settings "http3") "on"}}checked{{end}}
+                           hx-post="/api/settings/http3/update?zoneid={{.ZoneID}}"
+                           hx-vals='js:{value: this.checked ? "on" : "off"}'
+                           hx-trigger="change"
+                           hx-swap="none"
+                           hx-on::after-request="if(event.detail.successful) {
+                               showMessage('设置已更新', 'success');
+                           }">
+                </div>
+            </div>
+        </div>
+
+        <!-- Rocket Loader -->
+        <div class="setting-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="setting-label">Rocket Loader</div>
+                    <div class="setting-desc">异步加载 JavaScript，加快页面渲染速度。</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           {{if eq (index .Settings "rocket_loader") "on"}}checked{{end}}
+                           hx-post="/api/settings/rocket_loader/update?zoneid={{.ZoneID}}"
+                           hx-vals='js:{value: this.checked ? "on" : "off"}'
+                           hx-trigger="change"
+                           hx-swap="none"
+                           hx-on::after-request="if(event.detail.successful) {
+                               showMessage('设置已更新', 'success');
+                           }">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 安全设置 -->
+<div class="card setting-card" id="security-section">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="bi bi-shield"></i> 安全设置</h5>
+    </div>
+    <div class="card-body">
+        <!-- Security Level -->
+        <div class="setting-item">
+            <div class="setting-label">安全级别</div>
+            <div class="setting-desc mb-2">调整 CAPTCHA 挑战的触发阈值。</div>
+            <select class="form-select" style="max-width: 400px;"
+                    hx-post="/api/settings/security_level/update?zoneid={{.ZoneID}}"
+                    hx-trigger="change"
+                    hx-swap="none"
+                    hx-on::after-request="if(event.detail.successful) {
+                        showMessage('设置已更新', 'success');
+                    }">
+                <option value="essentially_off" {{if eq (index .Settings "security_level") "essentially_off"}}selected{{end}}>Essentially Off - 几乎不挑战</option>
+                <option value="low" {{if eq (index .Settings "security_level") "low"}}selected{{end}}>Low - 低安全级别</option>
+                <option value="medium" {{if eq (index .Settings "security_level") "medium"}}selected{{end}}>Medium - 中等安全级别（推荐）</option>
+                <option value="high" {{if eq (index .Settings "security_level") "high"}}selected{{end}}>High - 高安全级别</option>
+                <option value="under_attack" {{if eq (index .Settings "security_level") "under_attack"}}selected{{end}}>I'm Under Attack! - 遭受攻击模式</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- 危险区域 -->
+<div class="card setting-card danger-zone" id="danger-section">
+    <div class="card-header text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill"></i> 危险区域</h5>
+    </div>
+    <div class="card-body">
+        <div class="danger-item">
+            <div class="warning-text">⚠️ 删除域名</div>
+            <div class="danger-desc">
+                <strong>警告：</strong>删除域名将从 Cloudflare 中移除该域名的所有配置，包括：
+                <ul class="mt-2 mb-2">
+                    <li>所有 DNS 记录将被永久删除</li>
+                    <li>SSL 证书配置将被移除</li>
+                    <li>缓存、安全设置等所有配置将丢失</li>
+                    <li>此操作<strong>不可逆</strong>，无法恢复</li>
+                </ul>
+                <strong>注意：</strong>删除域名不会影响您的域名注册商，只是从 Cloudflare 中移除。
+            </div>
+            <button type="button" class="btn btn-danger" onclick="showDeleteModal()">
+                <i class="bi bi-trash"></i> 删除域名
+            </button>
+        </div>
+    </div>
+</div>
+
+<hr>
+<div class="mt-4 mb-5">
+    <a href="/zone?zoneid={{.ZoneID}}&domain={{.Domain}}" class="btn btn-secondary">返回 DNS 管理</a>
+    <a href="/zones" class="btn btn-outline-secondary">返回域名列表</a>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade delete-modal" id="deleteZoneModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 确认删除域名
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger mb-3">
+                    <strong>⚠️ 最后警告</strong><br>
+                    您即将删除域名 <strong>{{.Domain}}</strong>，此操作将：
+                    <ul class="mt-2 mb-0">
+                        <li>永久删除所有 DNS 记录</li>
+                        <li>移除所有安全和性能配置</li>
+                        <li>清除所有 SSL 证书配置</li>
+                        <li><strong>此操作无法撤销！</strong></li>
+                    </ul>
+                </div>
+
+                <p class="mb-3">如果您确定要删除此域名，请在下方输入完整域名以确认：</p>
+
+                <div class="mb-3">
+                    <label for="deleteConfirmInput" class="form-label">
+                        请输入域名：<code>{{.Domain}}</code>
+                    </label>
+                    <input type="text"
+                           class="form-control delete-input"
+                           id="deleteConfirmInput"
+                           placeholder="输入域名以确认删除"
+                           autocomplete="off">
+                    <small class="text-muted">区分大小写，必须完全匹配</small>
+                </div>
+
+                <div id="deleteError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn" onclick="confirmDelete()" disabled>
+                    <span id="deleteSpinner" class="spinner-border spinner-border-sm d-none"></span>
+                    确认删除
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</main>
+
+<script src="/static/js/htmx.min.js"></script>
+<script>
+    function showMessage(message, type) {
+        const container = document.getElementById('message-container');
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alert);
+
+        // 3 秒后自动消失
+        setTimeout(() => {
+            alert.remove();
+        }, 3000);
+    }
+
+    function updateMinify() {
+        const html = document.getElementById('minify-html').checked;
+        const css = document.getElementById('minify-css').checked;
+        const js = document.getElementById('minify-js').checked;
+
+        let value = '';
+        if (html) value += 'html,';
+        if (css) value += 'css,';
+        if (js) value += 'js,';
+        value = value.slice(0, -1); // 移除最后的逗号
+
+        // 发送更新请求
+        fetch('/api/settings/minify/update?zoneid={{.ZoneID}}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'value=' + encodeURIComponent(value)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage('Auto Minify 设置已更新', 'success');
+            } else {
+                showMessage(data.error || '更新失败', 'danger');
+            }
+        })
+        .catch(error => {
+            showMessage('更新失败', 'danger');
+        });
+    }
+
+    function applyPreset(presetName) {
+        const presetNames = {
+            'wordpress': 'WordPress 优化',
+            'static': '静态网站优化',
+            'api': 'API 服务优化',
+            'ecommerce': '电商网站优化',
+            'development': '开发环境'
+        };
+
+        if (!confirm(`确定要应用「${presetNames[presetName]}」配置模板吗？\n\n这将覆盖当前的所有设置！`)) {
+            return;
+        }
+
+        fetch('/api/settings/preset/apply?zoneid={{.ZoneID}}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'preset=' + encodeURIComponent(presetName)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage(data.message, 'success');
+                // 3 秒后刷新页面以显示新配置
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                showMessage(data.error || '应用失败', 'danger');
+            }
+        })
+        .catch(error => {
+            showMessage('应用失败: ' + error, 'danger');
+        });
+    }
+
+    // 删除域名相关函数
+    let deleteModal;
+
+    function showDeleteModal() {
+        deleteModal = new bootstrap.Modal(document.getElementById('deleteZoneModal'));
+        deleteModal.show();
+
+        // 重置输入框和错误提示
+        document.getElementById('deleteConfirmInput').value = '';
+        document.getElementById('confirmDeleteBtn').disabled = true;
+        document.getElementById('deleteError').classList.add('d-none');
+    }
+
+    // 监听输入框变化，验证域名是否匹配
+    document.addEventListener('DOMContentLoaded', function() {
+        const deleteInput = document.getElementById('deleteConfirmInput');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        const expectedDomain = '{{.Domain}}';
+
+        if (deleteInput) {
+            deleteInput.addEventListener('input', function() {
+                // 严格匹配域名（区分大小写）
+                if (this.value === expectedDomain) {
+                    confirmBtn.disabled = false;
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                } else {
+                    confirmBtn.disabled = true;
+                    this.classList.remove('is-valid');
+                    if (this.value.length > 0) {
+                        this.classList.add('is-invalid');
+                    } else {
+                        this.classList.remove('is-invalid');
+                    }
+                }
+            });
+        }
+    });
+
+    function confirmDelete() {
+        const deleteInput = document.getElementById('deleteConfirmInput');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        const deleteSpinner = document.getElementById('deleteSpinner');
+        const deleteError = document.getElementById('deleteError');
+        const expectedDomain = '{{.Domain}}';
+
+        // 最后一次验证
+        if (deleteInput.value !== expectedDomain) {
+            deleteError.textContent = '域名不匹配，请输入正确的域名';
+            deleteError.classList.remove('d-none');
+            return;
+        }
+
+        // 显示加载状态
+        confirmBtn.disabled = true;
+        deleteSpinner.classList.remove('d-none');
+        deleteError.classList.add('d-none');
+
+        // 发送删除请求
+        fetch('/api/zone/delete?zoneid={{.ZoneID}}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'domain=' + encodeURIComponent(expectedDomain)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 成功删除，显示消息并跳转
+                showMessage('域名已成功删除，即将跳转到域名列表...', 'success');
+                setTimeout(() => {
+                    window.location.href = '/zones';
+                }, 2000);
+            } else {
+                // 删除失败
+                deleteError.textContent = data.error || '删除失败，请重试';
+                deleteError.classList.remove('d-none');
+                confirmBtn.disabled = false;
+                deleteSpinner.classList.add('d-none');
+            }
+        })
+        .catch(error => {
+            deleteError.textContent = '删除失败: ' + error;
+            deleteError.classList.remove('d-none');
+            confirmBtn.disabled = false;
+            deleteSpinner.classList.add('d-none');
+        });
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

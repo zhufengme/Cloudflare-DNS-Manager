@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>域名列表 - Cloudflare DNS Manager</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/zones">Cloudflare DNS Manager</a>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出</a>
+            </div>
+        </div>
+    </nav>
+
+<main role="main" class="container my-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>域名列表</h2>
+    <a href="/zone/add" class="btn btn-primary">添加域名</a>
+</div>
+
+{{if .Zones}}
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>域名</th>
+                <th>状态</th>
+                <th>管理模式</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Zones}}
+            <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td>
+                    {{if eq .Status "active"}}
+                        <span class="badge bg-success">活跃</span>
+                    {{else if eq .Status "pending"}}
+                        <span class="badge bg-warning">待处理</span>
+                    {{else}}
+                        <span class="badge bg-secondary">{{.Status}}</span>
+                    {{end}}
+                </td>
+                <td>
+                    {{if eq .Type "full"}}
+                        <span class="badge bg-primary" title="通过 NS 记录接入 Cloudflare">Full Setup</span>
+                    {{else if eq .Type "partial"}}
+                        <span class="badge bg-info" title="通过 CNAME 记录接入 Cloudflare（合作伙伴模式）">CNAME Setup</span>
+                    {{else}}
+                        <span class="badge bg-secondary">{{.Type}}</span>
+                    {{end}}
+                </td>
+                <td>
+                    <a href="/zone?zoneid={{.ID}}&domain={{.Name}}" class="btn btn-sm btn-primary">管理 DNS</a>
+                    <a href="/certificates?zoneid={{.ID}}&domain={{.Name}}" class="btn btn-sm btn-success">证书</a>
+                    <a href="/settings?zoneid={{.ID}}&domain={{.Name}}" class="btn btn-sm btn-warning">设置</a>
+                    <a href="/security?zoneid={{.ID}}&domain={{.Name}}" class="btn btn-sm btn-info">安全</a>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+{{if .ResultInfo}}
+<nav>
+    <ul class="pagination">
+        {{if gt .Page 1}}
+        <li class="page-item">
+            <a class="page-link" href="?page={{sub .Page 1}}">上一页</a>
+        </li>
+        {{end}}
+        <li class="page-item disabled">
+            <span class="page-link">第 {{.Page}} / {{.ResultInfo.TotalPages}} 页</span>
+        </li>
+        {{if lt .Page .ResultInfo.TotalPages}}
+        <li class="page-item">
+            <a class="page-link" href="?page={{add .Page 1}}">下一页</a>
+        </li>
+        {{end}}
+    </ul>
+</nav>
+{{end}}
+
+{{else}}
+<div class="alert alert-info">
+    您还没有添加任何域名。<a href="/zone/add">立即添加</a>
+</div>
+{{end}}
+</main>
+
+<script src="/static/js/htmx.min.js"></script>
+<script src="/static/js/alpine.min.js"></script>
+</body>
+</html>

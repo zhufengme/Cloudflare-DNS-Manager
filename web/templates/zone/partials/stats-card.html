@@ -1,0 +1,22 @@
+<div class="row text-center">
+    <div class="col-md-3">
+        <h3>{{.total}}</h3>
+        <small class="text-muted">总记录数</small>
+    </div>
+    <div class="col-md-3">
+        <h3>{{.proxied_count}}</h3>
+        <small class="text-muted">已启用 CDN</small>
+    </div>
+    <div class="col-md-2">
+        <h3>{{index .type_counts "A"}}</h3>
+        <small class="text-muted">A 记录</small>
+    </div>
+    <div class="col-md-2">
+        <h3>{{index .type_counts "AAAA"}}</h3>
+        <small class="text-muted">AAAA 记录</small>
+    </div>
+    <div class="col-md-2">
+        <h3>{{index .type_counts "CNAME"}}</h3>
+        <small class="text-muted">CNAME 记录</small>
+    </div>
+</div>
