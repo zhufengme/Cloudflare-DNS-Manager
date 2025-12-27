@@ -7,7 +7,7 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/yourusername/cloudflare-cname-go/internal/service"
+	"github.com/zhufengme/Cloudflare-DNS-Manager/internal/service"
 )
 
 type DNSHandler struct{}

@@ -15,10 +15,10 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html/v2"
 
-	"github.com/yourusername/cloudflare-cname-go/internal/config"
-	"github.com/yourusername/cloudflare-cname-go/internal/handler"
-	"github.com/yourusername/cloudflare-cname-go/internal/i18n"
-	"github.com/yourusername/cloudflare-cname-go/internal/middleware"
+	"github.com/zhufengme/Cloudflare-DNS-Manager/internal/config"
+	"github.com/zhufengme/Cloudflare-DNS-Manager/internal/handler"
+	"github.com/zhufengme/Cloudflare-DNS-Manager/internal/i18n"
+	"github.com/zhufengme/Cloudflare-DNS-Manager/internal/middleware"
 )
 
 //go:embed web

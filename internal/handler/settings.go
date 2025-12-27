@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/yourusername/cloudflare-cname-go/internal/service"
+	"github.com/zhufengme/Cloudflare-DNS-Manager/internal/service"
 )
 
 type SettingsHandler struct{}

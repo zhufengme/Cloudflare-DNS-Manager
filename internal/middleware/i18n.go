@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/yourusername/cloudflare-cname-go/internal/i18n"
+	"github.com/zhufengme/Cloudflare-DNS-Manager/internal/i18n"
 )
 
 // I18n 中间件：检测语言并注入 Localizer

@@ -84,8 +84,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/zhufengme/Cloudflare-CNAME-Setup.git
-cd Cloudflare-CNAME-Setup
+git clone https://github.com/zhufengme/Cloudflare-DNS-Manager.git
+cd Cloudflare-DNS-Manager
 
 # 编译（Linux/macOS）
 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/cf-dns-manager
