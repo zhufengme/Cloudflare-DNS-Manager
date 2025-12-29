@@ -232,8 +232,13 @@
                     <div class="mb-3">
                         <label class="form-label">域名/主机名 <span class="text-danger">*</span></label>
                         <input type="text" name="hostnames" class="form-control"
-                               placeholder="example.com, *.example.com (多个用逗号分隔)" required>
-                        <small class="text-muted">支持通配符，如 *.example.com</small>
+                               placeholder="{{.Domain}}, *.{{.Domain}} (多个用逗号分隔)" required>
+                        <small class="text-muted d-block mb-1">
+                            <strong>示例：</strong>{{.Domain}}, *.{{.Domain}}, www.{{.Domain}}
+                        </small>
+                        <small class="text-warning d-block">
+                            ⚠️ 请输入当前域名 <strong>{{.Domain}}</strong> 或其子域名，不能使用其他域名
+                        </small>
                     </div>
 
                     <div class="mb-3">

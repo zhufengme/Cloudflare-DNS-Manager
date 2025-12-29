@@ -111,7 +111,10 @@ func (h *CertificateHandler) CreateOriginCertificate(c *fiber.Ctx) error {
 	validityDays := c.FormValue("requested_validity")
 
 	if hostnamesStr == "" || requestType == "" || validityDays == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "Missing required fields"})
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "缺少必填字段：域名、证书类型或有效期",
+		})
 	}
 
 	// 解析主机名列表
@@ -125,22 +128,42 @@ func (h *CertificateHandler) CreateOriginCertificate(c *fiber.Ctx) error {
 	}
 
 	if len(cleanedHostnames) == 0 {
-		return c.Status(400).JSON(fiber.Map{"error": "At least one hostname is required"})
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "至少需要一个域名",
+		})
 	}
 
 	// 转换有效期为整数
 	var validity int
-	fmt.Sscanf(validityDays, "%d", &validity)
+	_, err := fmt.Sscanf(validityDays, "%d", &validity)
+	if err != nil || validity <= 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "无效的有效期参数",
+		})
+	}
 
 	cfService, err := service.NewCloudflareService(email, apiKey)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create service"})
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "创建 Cloudflare 服务失败",
+		})
 	}
 
 	// 创建证书
 	cert, err := cfService.CreateOriginCertificate(context.Background(), cleanedHostnames, requestType, validity)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		// 详细的错误信息
+		errorMsg := err.Error()
+		if strings.Contains(errorMsg, "1007") {
+			errorMsg = "无效的域名格式。请确保域名正确且属于当前账户管理的区域。"
+		}
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   fmt.Sprintf("创建证书失败: %s", errorMsg),
+		})
 	}
 
 	return c.JSON(fiber.Map{
