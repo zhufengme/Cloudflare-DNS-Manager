@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -110,7 +111,13 @@ func (h *CertificateHandler) CreateOriginCertificate(c *fiber.Ctx) error {
 	requestType := c.FormValue("request_type")
 	validityDays := c.FormValue("requested_validity")
 
+	// 记录请求参数
+	log.Printf("[Certificate Create] User: %s, Hostnames: %s, Type: %s, Validity: %s",
+		email, hostnamesStr, requestType, validityDays)
+
 	if hostnamesStr == "" || requestType == "" || validityDays == "" {
+		log.Printf("[Certificate Create Error] Missing fields - Hostnames: %q, Type: %q, Validity: %q",
+			hostnamesStr, requestType, validityDays)
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "缺少必填字段：域名、证书类型或有效期",
@@ -128,6 +135,7 @@ func (h *CertificateHandler) CreateOriginCertificate(c *fiber.Ctx) error {
 	}
 
 	if len(cleanedHostnames) == 0 {
+		log.Printf("[Certificate Create Error] No valid hostnames after cleaning: %v", hostnames)
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "至少需要一个域名",
@@ -138,6 +146,7 @@ func (h *CertificateHandler) CreateOriginCertificate(c *fiber.Ctx) error {
 	var validity int
 	_, err := fmt.Sscanf(validityDays, "%d", &validity)
 	if err != nil || validity <= 0 {
+		log.Printf("[Certificate Create Error] Invalid validity: %s, error: %v", validityDays, err)
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "无效的有效期参数",
@@ -146,18 +155,29 @@ func (h *CertificateHandler) CreateOriginCertificate(c *fiber.Ctx) error {
 
 	cfService, err := service.NewCloudflareService(email, apiKey)
 	if err != nil {
+		log.Printf("[Certificate Create Error] Failed to create CF service: %v", err)
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
 			"error":   "创建 Cloudflare 服务失败",
 		})
 	}
 
+	// 记录清理后的参数
+	log.Printf("[Certificate Create] Cleaned hostnames: %v, Type: %s, Validity: %d days",
+		cleanedHostnames, requestType, validity)
+
 	// 创建证书
 	cert, err := cfService.CreateOriginCertificate(context.Background(), cleanedHostnames, requestType, validity)
 	if err != nil {
+		// 详细的错误日志
+		log.Printf("[Certificate Create Error] Cloudflare API error: %v", err)
+		log.Printf("[Certificate Create Error] Parameters - Hostnames: %v, Type: %s, Validity: %d",
+			cleanedHostnames, requestType, validity)
+
 		// 详细的错误信息
 		errorMsg := err.Error()
 		if strings.Contains(errorMsg, "1007") {
+			log.Printf("[Certificate Create Error] Error 1007 detected - Invalid domain or access issue")
 			errorMsg = "无效的域名格式。请确保域名正确且属于当前账户管理的区域。"
 		}
 		return c.Status(500).JSON(fiber.Map{
@@ -166,10 +186,17 @@ func (h *CertificateHandler) CreateOriginCertificate(c *fiber.Ctx) error {
 		})
 	}
 
+	log.Printf("[Certificate Create Success] Certificate ID: %s, Hostnames: %v", cert.ID, cleanedHostnames)
+
 	return c.JSON(fiber.Map{
-		"success": true,
-		"message": "回源证书创建成功",
-		"cert_id": cert.ID,
+		"success":        true,
+		"message":        "回源证书创建成功！请立即保存私钥，这是唯一一次机会",
+		"cert_id":        cert.ID,
+		"certificate":    cert.Certificate,
+		"private_key":    cert.PrivateKey,
+		"hostnames":      cert.Hostnames,
+		"expires_on":     cert.ExpiresOn.Format("2006-01-02 15:04:05"),
+		"encryption_key": apiKey, // 用于前端加密存储私钥
 	})
 }
 

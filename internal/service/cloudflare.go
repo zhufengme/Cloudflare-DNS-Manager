@@ -1,15 +1,28 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
 
 	"github.com/cloudflare/cloudflare-go"
 )
 
 type CloudflareService struct {
-	API   *cloudflare.API
-	Email string
+	API    *cloudflare.API
+	Email  string
+	APIKey string
 }
 
 func NewCloudflareService(email, apiKey string) (*CloudflareService, error) {
@@ -19,8 +32,9 @@ func NewCloudflareService(email, apiKey string) (*CloudflareService, error) {
 	}
 
 	return &CloudflareService{
-		API:   api,
-		Email: email,
+		API:    api,
+		Email:  email,
+		APIKey: apiKey,
 	}, nil
 }
 
@@ -287,14 +301,178 @@ func (s *CloudflareService) GetOriginCertificate(ctx context.Context, certID str
 	return s.API.GetOriginCACertificate(ctx, certID)
 }
 
-// CreateOriginCertificate 创建回源证书
-func (s *CloudflareService) CreateOriginCertificate(ctx context.Context, hostnames []string, requestType string, validityDays int) (*cloudflare.OriginCACertificate, error) {
-	params := cloudflare.CreateOriginCertificateParams{
-		Hostnames:       hostnames,
-		RequestType:     requestType,
-		RequestValidity: validityDays,
+// OriginCertificateWithKey 扩展结构体，包含私钥
+type OriginCertificateWithKey struct {
+	cloudflare.OriginCACertificate
+	PrivateKey string `json:"private_key"`
+}
+
+// generatePrivateKeyAndCSR 生成私钥和CSR
+func generatePrivateKeyAndCSR(hostnames []string, requestType string) (privateKeyPEM string, csrPEM string, err error) {
+	// 根据 request_type 确定使用 RSA 还是 ECC
+	var privateKey interface{}
+	var keyBytes []byte
+
+	if requestType == "origin-ecc" {
+		// 生成 ECC 密钥 (P-256)
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to generate ECC key: %w", err)
+		}
+		privateKey = key
+
+		keyBytes, err = x509.MarshalECPrivateKey(key)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to marshal ECC key: %w", err)
+		}
+
+		privateKeyPEM = string(pem.EncodeToMemory(&pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: keyBytes,
+		}))
+	} else {
+		// 默认生成 RSA 密钥 (2048 位)
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to generate RSA key: %w", err)
+		}
+		privateKey = key
+
+		keyBytes = x509.MarshalPKCS1PrivateKey(key)
+		privateKeyPEM = string(pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: keyBytes,
+		}))
 	}
-	return s.API.CreateOriginCACertificate(ctx, params)
+
+	// 创建 CSR
+	// 使用第一个 hostname 作为 Common Name
+	commonName := hostnames[0]
+
+	template := x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName: commonName,
+		},
+		DNSNames: hostnames,
+	}
+
+	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, &template, privateKey)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create CSR: %w", err)
+	}
+
+	csrPEM = string(pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE REQUEST",
+		Bytes: csrBytes,
+	}))
+
+	return privateKeyPEM, csrPEM, nil
+}
+
+// CreateOriginCertificate 创建回源证书（包含私钥）
+// 注意：Cloudflare API 要求必须提供 CSR，不再支持自动生成
+// 因此我们需要：1. 生成私钥和CSR 2. 提交CSR 3. 返回证书和私钥
+func (s *CloudflareService) CreateOriginCertificate(ctx context.Context, hostnames []string, requestType string, validityDays int) (*OriginCertificateWithKey, error) {
+	fmt.Printf("[INFO] Creating origin certificate for hostnames: %v\n", hostnames)
+
+	// 步骤1: 生成私钥和CSR
+	privateKeyPEM, csrPEM, err := generatePrivateKeyAndCSR(hostnames, requestType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key and CSR: %w", err)
+	}
+
+	fmt.Printf("[INFO] Generated private key and CSR\n")
+
+	// 步骤2: 构造请求payload（包含CSR）
+	payload := map[string]interface{}{
+		"hostnames":          hostnames,
+		"request_type":       requestType,
+		"requested_validity": validityDays,
+		"csr":                csrPEM,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal payload: %w", err)
+	}
+
+	// 步骤3: 调用 Cloudflare API
+	url := "https://api.cloudflare.com/client/v4/certificates"
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("X-Auth-Email", s.Email)
+	req.Header.Set("X-Auth-Key", s.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	// 解析响应
+	var apiResp struct {
+		Success bool `json:"success"`
+		Result  struct {
+			ID              string   `json:"id"`
+			Certificate     string   `json:"certificate"`
+			Hostnames       []string `json:"hostnames"`
+			ExpiresOn       string   `json:"expires_on"`
+			RequestType     string   `json:"request_type"`
+			RequestValidity int      `json:"requested_validity"`
+			CSR             string   `json:"csr"`
+		} `json:"result"`
+		Errors []map[string]interface{} `json:"errors"`
+	}
+
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil, fmt.Errorf("unmarshal response: %w", err)
+	}
+
+	if !apiResp.Success {
+		if len(apiResp.Errors) > 0 {
+			return nil, fmt.Errorf("Cloudflare API error: %v", apiResp.Errors[0])
+		}
+		return nil, fmt.Errorf("API request failed")
+	}
+
+	// 解析时间
+	expiresOn, err := time.Parse("2006-01-02 15:04:05 -0700 MST", apiResp.Result.ExpiresOn)
+	if err != nil {
+		// 尝试RFC3339格式
+		expiresOn, err = time.Parse(time.RFC3339, apiResp.Result.ExpiresOn)
+		if err != nil {
+			fmt.Printf("[WARN] Failed to parse expires_on: %v, using calculated time\n", err)
+			expiresOn = time.Now().AddDate(0, 0, validityDays)
+		}
+	}
+
+	fmt.Printf("[SUCCESS] Certificate created successfully, ID: %s\n", apiResp.Result.ID)
+
+	// 返回证书和我们生成的私钥
+	result := &OriginCertificateWithKey{
+		OriginCACertificate: cloudflare.OriginCACertificate{
+			ID:              apiResp.Result.ID,
+			Certificate:     apiResp.Result.Certificate,
+			Hostnames:       apiResp.Result.Hostnames,
+			ExpiresOn:       expiresOn,
+			RequestType:     apiResp.Result.RequestType,
+			RequestValidity: apiResp.Result.RequestValidity,
+			CSR:             apiResp.Result.CSR,
+		},
+		PrivateKey: privateKeyPEM, // 我们自己生成的私钥
+	}
+
+	return result, nil
 }
 
 // RevokeOriginCertificate 撤销回源证书

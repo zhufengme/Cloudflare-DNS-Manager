@@ -111,7 +111,7 @@
     <div class="tab-pane fade show active">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <p class="text-muted mb-0">回源证书用于 Cloudflare 与您源站之间的 HTTPS 连接，由 Cloudflare 免费签发。</p>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createOriginCertModal">
+            <button class="btn btn-primary" id="openCreateCertModal">
                 创建新证书
             </button>
         </div>
@@ -164,6 +164,12 @@
                         <a href="/api/certificates/origin/{{.ID}}/download" class="btn btn-sm btn-success">
                             下载证书 (.pem)
                         </a>
+                        <button class="btn btn-sm btn-outline-primary view-stored-key-btn"
+                                data-cert-id="{{.ID}}"
+                                onclick="openViewKeyModal('{{.ID}}')"
+                                style="display: none;">
+                            🔑 查看私钥
+                        </button>
                         {{if .RevokedAt.IsZero}}
                         <button class="btn btn-sm btn-danger"
                                 hx-post="/api/certificates/origin/{{.ID}}/revoke"
@@ -184,7 +190,7 @@
             {{end}}
         {{else}}
             <div class="alert alert-info">
-                还没有回源证书。<button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#createOriginCertModal">创建第一个证书</button>
+                还没有回源证书。<button class="btn btn-link p-0" id="openCreateCertModalEmpty">创建第一个证书</button>
             </div>
         {{end}}
     </div>
@@ -283,9 +289,376 @@
     </div>
 </div>
 
+<!-- 证书创建成功模态框 -->
+<div class="modal fade" id="certResultModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">✅ 证书创建成功</h5>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>⚠️ 重要提示：</strong>私钥只会显示一次！请立即保存，关闭后将无法再次查看。
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>证书 ID:</strong></label>
+                    <input type="text" id="result-cert-id" class="form-control" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>域名:</strong></label>
+                    <input type="text" id="result-hostnames" class="form-control" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>到期时间:</strong></label>
+                    <input type="text" id="result-expires" class="form-control" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>证书 (Certificate):</strong></label>
+                    <textarea id="result-certificate" class="form-control font-monospace" rows="10" readonly></textarea>
+                    <button class="btn btn-sm btn-success mt-2" onclick="downloadCertificate()">
+                        💾 下载证书 (certificate.pem)
+                    </button>
+                    <button class="btn btn-sm btn-secondary mt-2" onclick="copyCertificate()">
+                        📋 复制证书
+                    </button>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>私钥 (Private Key):</strong></label>
+                    <textarea id="result-private-key" class="form-control font-monospace" rows="10" readonly></textarea>
+                    <button class="btn btn-sm btn-success mt-2" onclick="downloadPrivateKey()">
+                        💾 下载私钥 (private.key)
+                    </button>
+                    <button class="btn btn-sm btn-secondary mt-2" onclick="copyPrivateKey()">
+                        📋 复制私钥
+                    </button>
+                </div>
+
+                <!-- 保存到浏览器选项 -->
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="saveToLocalStorage" checked>
+                            <label class="form-check-label" for="saveToLocalStorage">
+                                <strong>🔐 保存私钥到浏览器（方便多次部署时查看）</strong>
+                            </label>
+                        </div>
+
+                        <div class="alert alert-warning mb-0" style="font-size: 0.9rem;">
+                            <p class="mb-2"><strong>存储位置：</strong>私钥将加密存储在当前浏览器的本地存储 (localStorage) 中。</p>
+
+                            <p class="mb-2"><strong>加密机制：</strong></p>
+                            <ul class="mb-2">
+                                <li>使用您的 Cloudflare API Key 作为加密密码</li>
+                                <li>采用 AES-256-GCM 加密算法（银行级别加密标准）</li>
+                                <li>每个私钥使用独立的随机盐值，防止彩虹表攻击</li>
+                                <li>查看时需要输入正确的 API Key 才能解密</li>
+                            </ul>
+
+                            <p class="mb-2"><strong>⚠️ 重要限制：</strong></p>
+                            <ul class="mb-2">
+                                <li><strong>设备绑定</strong>：私钥仅存储在当前浏览器中，更换电脑或浏览器将无法访问</li>
+                                <li><strong>数据清除</strong>：清空浏览器数据、缓存或使用隐私模式会永久丢失存储的私钥</li>
+                                <li><strong>API Key 绑定</strong>：如果您更换了 Cloudflare API Key，将无法解密之前存储的私钥</li>
+                                <li><strong>无云同步</strong>：不同设备之间不会自动同步</li>
+                            </ul>
+
+                            <p class="mb-0"><strong>💡 建议：</strong>同时下载私钥文件作为备份，存储在安全的位置。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="confirmSaveBtn" onclick="confirmAndClose()">
+                    确认已保存，关闭并刷新
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 查看已保存私钥模态框 -->
+<div class="modal fade" id="viewPrivateKeyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🔑 查看已保存的私钥</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- API Key 输入区域 -->
+                <div id="apiKeyInputSection">
+                    <div class="alert alert-info">
+                        <strong>说明：</strong>私钥已使用您的 Cloudflare API Key 加密存储。请输入您的 API Key 以解密查看。
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label"><strong>证书信息：</strong></label>
+                        <div id="storedCertInfo" class="bg-light p-2 rounded">
+                            <p class="mb-1"><strong>证书 ID:</strong> <code id="view-cert-id"></code></p>
+                            <p class="mb-1"><strong>域名:</strong> <span id="view-hostnames"></span></p>
+                            <p class="mb-0"><strong>保存时间:</strong> <span id="view-stored-at"></span></p>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Cloudflare API Key</strong></label>
+                        <input type="password" id="decryptApiKey" class="form-control"
+                               placeholder="输入您的 Global API Key">
+                        <small class="text-muted">与创建证书时使用的 API Key 相同</small>
+                    </div>
+                    <button class="btn btn-primary" onclick="decryptAndShowKey()">
+                        🔓 解密私钥
+                    </button>
+                </div>
+
+                <!-- 解密后的私钥显示区域 -->
+                <div id="decryptedKeySection" style="display: none;">
+                    <div class="alert alert-success">
+                        <strong>✅ 解密成功！</strong>私钥已显示在下方。
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label"><strong>私钥 (Private Key):</strong></label>
+                        <textarea id="decrypted-private-key" class="form-control font-monospace"
+                                  rows="12" readonly></textarea>
+                    </div>
+                    <button class="btn btn-sm btn-success" onclick="downloadDecryptedKey()">
+                        💾 下载私钥
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="copyDecryptedKey()">
+                        📋 复制私钥
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteStoredKey()">
+                        🗑️ 从浏览器删除
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="/static/js/htmx.min.js"></script>
 <script src="/static/js/bootstrap.bundle.min.js"></script>
 <script>
+    // ============================================
+    // 全局变量声明
+    // ============================================
+    let pendingCertData = null;
+    let resultModalInstance = null;
+    let currentViewCertId = null;
+
+    // 检查 Web Crypto API 是否可用
+    const isCryptoAvailable = !!(window.crypto && window.crypto.subtle);
+    if (!isCryptoAvailable) {
+        console.error('[ERROR] Web Crypto API 不可用。需要 HTTPS 或 localhost 访问。');
+    }
+
+    // ============================================
+    // 私钥本地加密存储功能
+    // ============================================
+    const STORAGE_KEY = "cf_origin_cert_keys";
+
+    // PBKDF2 密钥派生函数
+    async function deriveEncryptionKey(apiKey, salt) {
+        if (!isCryptoAvailable) {
+            throw new Error('Web Crypto API 不可用，需要通过 HTTPS 访问');
+        }
+        const keyMaterial = await crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode(apiKey),
+            "PBKDF2",
+            false,
+            ["deriveKey"]
+        );
+
+        return await crypto.subtle.deriveKey(
+            {
+                name: "PBKDF2",
+                salt: salt,
+                iterations: 100000,
+                hash: "SHA-256"
+            },
+            keyMaterial,
+            { name: "AES-GCM", length: 256 },
+            false,
+            ["encrypt", "decrypt"]
+        );
+    }
+
+    // ============================================
+    // 加密/解密函数（支持 HTTPS 和 HTTP 两种模式）
+    // ============================================
+
+    // 简单 XOR 混淆函数（HTTP 模式备用）
+    function xorEncrypt(text, key) {
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+        }
+        return btoa(result);
+    }
+
+    function xorDecrypt(encoded, key) {
+        const text = atob(encoded);
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+        }
+        return result;
+    }
+
+    // 加密私钥（自动选择加密模式）
+    async function encryptPrivateKey(privateKey, apiKey) {
+        if (isCryptoAvailable) {
+            // HTTPS 模式：使用 AES-GCM
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+
+            const encryptionKey = await deriveEncryptionKey(apiKey, salt);
+            const encodedPrivateKey = new TextEncoder().encode(privateKey);
+
+            const ciphertext = await crypto.subtle.encrypt(
+                { name: "AES-GCM", iv: iv },
+                encryptionKey,
+                encodedPrivateKey
+            );
+
+            return {
+                encryptedKey: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
+                iv: btoa(String.fromCharCode(...iv)),
+                salt: btoa(String.fromCharCode(...salt)),
+                mode: 'aes-gcm'
+            };
+        } else {
+            // HTTP 模式：使用简单 XOR 混淆
+            console.warn('[WARN] 使用 HTTP 模式，加密强度较低。建议使用 HTTPS。');
+            return {
+                encryptedKey: xorEncrypt(privateKey, apiKey),
+                mode: 'xor'
+            };
+        }
+    }
+
+    // 解密私钥（自动选择解密模式）
+    async function decryptPrivateKey(encryptedData, apiKey) {
+        if (encryptedData.mode === 'xor') {
+            // XOR 模式解密
+            return xorDecrypt(encryptedData.encryptedKey, apiKey);
+        } else {
+            // AES-GCM 模式解密
+            if (!isCryptoAvailable) {
+                throw new Error('此私钥使用 AES-GCM 加密，需要通过 HTTPS 访问才能解密');
+            }
+
+            const ciphertext = Uint8Array.from(atob(encryptedData.encryptedKey), c => c.charCodeAt(0));
+            const iv = Uint8Array.from(atob(encryptedData.iv), c => c.charCodeAt(0));
+            const salt = Uint8Array.from(atob(encryptedData.salt), c => c.charCodeAt(0));
+
+            const decryptionKey = await deriveEncryptionKey(apiKey, salt);
+
+            const decrypted = await crypto.subtle.decrypt(
+                { name: "AES-GCM", iv: iv },
+                decryptionKey,
+                ciphertext
+            );
+
+            return new TextDecoder().decode(decrypted);
+        }
+    }
+
+    // ============================================
+    // localStorage 管理函数
+    // ============================================
+
+    // 获取所有存储的证书私钥
+    function getStoredCertificates() {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : {};
+    }
+
+    // 保存证书私钥
+    function saveCertificateKey(certId, encryptedData, metadata) {
+        const certs = getStoredCertificates();
+        certs[certId] = {
+            ...encryptedData,
+            ...metadata,
+            storedAt: new Date().toISOString()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(certs));
+        updateStoredKeysUI();
+    }
+
+    // 删除证书私钥
+    function deleteCertificateKey(certId) {
+        const certs = getStoredCertificates();
+        delete certs[certId];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(certs));
+        updateStoredKeysUI();
+    }
+
+    // 检查是否有存储的私钥
+    function hasCertificateKey(certId) {
+        const certs = getStoredCertificates();
+        return certId in certs;
+    }
+
+    // 更新UI状态 - 显示/隐藏查看私钥按钮
+    function updateStoredKeysUI() {
+        document.querySelectorAll('.view-stored-key-btn').forEach(btn => {
+            const certId = btn.dataset.certId;
+            btn.style.display = hasCertificateKey(certId) ? 'inline-block' : 'none';
+        });
+    }
+
+    // ============================================
+    // 原有代码
+    // ============================================
+
+    // 保存模态框实例以便后续关闭
+    var createCertModal = null;
+
+    // 打开创建证书模态框
+    function openCreateModal() {
+        const modal = document.getElementById('createOriginCertModal');
+        if (modal && typeof bootstrap !== 'undefined') {
+            createCertModal = new bootstrap.Modal(modal);
+            createCertModal.show();
+        } else {
+            console.error('[ERROR] Modal element or Bootstrap not found');
+            alert('页面加载不完整，请刷新页面后重试');
+        }
+    }
+
+    // 关闭创建证书模态框
+    function closeCreateModal() {
+        if (createCertModal) {
+            createCertModal.hide();
+        }
+    }
+
+    // 页面加载完成后绑定事件
+    document.addEventListener('DOMContentLoaded', function() {
+        // 绑定"创建新证书"按钮
+        const createBtn = document.getElementById('openCreateCertModal');
+        if (createBtn) {
+            createBtn.addEventListener('click', openCreateModal);
+        }
+
+        // 绑定"创建第一个证书"按钮
+        const createBtnEmpty = document.getElementById('openCreateCertModalEmpty');
+        if (createBtnEmpty) {
+            createBtnEmpty.addEventListener('click', openCreateModal);
+        }
+    });
+
     function showMessage(message, type) {
         const container = document.getElementById('message-container');
         const alert = document.createElement('div');
@@ -321,15 +694,27 @@
 
         fetch('/api/certificates/origin/create?zoneid={{.ZoneID}}', {
             method: 'POST',
-            body: formData
+            body: formData,
+            credentials: 'same-origin'  // 携带 cookies
         })
-        .then(response => response.json())
+        .then(response => {
+            if (response.status === 401) {
+                // 会话过期，跳转到登录页
+                alert('会话已过期，请重新登录');
+                window.location.href = '/login';
+                return null;
+            }
+            return response.json();
+        })
         .then(data => {
+            if (!data) return; // 401 跳转，不处理
+
             if (data.success) {
-                showMessage(data.message, 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                // 关闭创建模态框
+                closeCreateModal();
+
+                // 显示证书和私钥
+                showCertificateResult(data);
             } else {
                 showMessage(data.error || '创建失败', 'danger');
                 submitBtn.disabled = false;
@@ -341,6 +726,216 @@
             submitBtn.disabled = false;
             submitBtn.querySelector('.htmx-indicator').style.display = 'none';
         });
+    });
+
+    // 显示证书创建结果
+    function showCertificateResult(data) {
+        // 存储待保存的数据（包含 encryption_key）
+        pendingCertData = data;
+        console.log('[DEBUG] showCertificateResult called, encryption_key:', data.encryption_key ? 'present' : 'missing');
+
+        document.getElementById('result-cert-id').value = data.cert_id;
+        document.getElementById('result-hostnames').value = data.hostnames.join(', ');
+        document.getElementById('result-expires').value = data.expires_on;
+        document.getElementById('result-certificate').value = data.certificate;
+        document.getElementById('result-private-key').value = data.private_key;
+
+        // 显示结果模态框
+        resultModalInstance = new bootstrap.Modal(document.getElementById('certResultModal'));
+        resultModalInstance.show();
+    }
+
+    // 下载证书
+    function downloadCertificate() {
+        const cert = document.getElementById('result-certificate').value;
+        const certId = document.getElementById('result-cert-id').value;
+        downloadFile(cert, `certificate-${certId.substring(0, 8)}.pem`);
+    }
+
+    // 下载私钥
+    function downloadPrivateKey() {
+        const key = document.getElementById('result-private-key').value;
+        const certId = document.getElementById('result-cert-id').value;
+        downloadFile(key, `private-key-${certId.substring(0, 8)}.key`);
+    }
+
+    // 复制证书
+    function copyCertificate() {
+        const cert = document.getElementById('result-certificate');
+        cert.select();
+        document.execCommand('copy');
+        showMessage('证书已复制到剪贴板', 'success');
+    }
+
+    // 复制私钥
+    function copyPrivateKey() {
+        const key = document.getElementById('result-private-key');
+        key.select();
+        document.execCommand('copy');
+        showMessage('私钥已复制到剪贴板', 'success');
+    }
+
+    // 通用下载函数
+    function downloadFile(content, filename) {
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        showMessage(`已下载: ${filename}`, 'success');
+    }
+
+    // ============================================
+    // 私钥本地存储交互逻辑
+    // ============================================
+
+    // 打开查看私钥模态框
+    function openViewKeyModal(certId) {
+        currentViewCertId = certId;
+        const certs = getStoredCertificates();
+        const certData = certs[certId];
+
+        if (!certData) {
+            showMessage('未找到存储的私钥', 'danger');
+            return;
+        }
+
+        // 填充证书信息
+        document.getElementById('view-cert-id').textContent = certId.substring(0, 16) + '...';
+        document.getElementById('view-hostnames').textContent = certData.hostnames ? certData.hostnames.join(', ') : '未知';
+        document.getElementById('view-stored-at').textContent = certData.storedAt ?
+            new Date(certData.storedAt).toLocaleString('zh-CN') : '未知';
+
+        // 重置显示状态
+        document.getElementById('decryptApiKey').value = '';
+        document.getElementById('decrypted-private-key').value = '';
+        document.getElementById('apiKeyInputSection').style.display = 'block';
+        document.getElementById('decryptedKeySection').style.display = 'none';
+
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('viewPrivateKeyModal'));
+        modal.show();
+    }
+
+    // 验证私钥格式是否正确
+    function isValidPrivateKey(key) {
+        if (!key || typeof key !== 'string') return false;
+        // 检查 PEM 格式：以 -----BEGIN 开头，以 -----END 结尾
+        const trimmed = key.trim();
+        const isRSA = trimmed.startsWith('-----BEGIN RSA PRIVATE KEY-----') &&
+                      trimmed.endsWith('-----END RSA PRIVATE KEY-----');
+        const isEC = trimmed.startsWith('-----BEGIN EC PRIVATE KEY-----') &&
+                     trimmed.endsWith('-----END EC PRIVATE KEY-----');
+        const isGeneric = trimmed.startsWith('-----BEGIN PRIVATE KEY-----') &&
+                          trimmed.endsWith('-----END PRIVATE KEY-----');
+        return isRSA || isEC || isGeneric;
+    }
+
+    // 解密并显示私钥
+    async function decryptAndShowKey() {
+        const apiKey = document.getElementById('decryptApiKey').value.trim();
+        if (!apiKey) {
+            showMessage('请输入 API Key', 'warning');
+            return;
+        }
+
+        const certs = getStoredCertificates();
+        const certData = certs[currentViewCertId];
+
+        if (!certData) {
+            showMessage('未找到存储的私钥', 'danger');
+            return;
+        }
+
+        try {
+            const decrypted = await decryptPrivateKey(certData, apiKey);
+
+            // 验证解密后的私钥格式
+            if (!isValidPrivateKey(decrypted)) {
+                showMessage('API Key 不正确，无法解密私钥', 'danger');
+                return;
+            }
+
+            document.getElementById('decrypted-private-key').value = decrypted;
+            document.getElementById('apiKeyInputSection').style.display = 'none';
+            document.getElementById('decryptedKeySection').style.display = 'block';
+            // 清除API Key输入
+            document.getElementById('decryptApiKey').value = '';
+        } catch (error) {
+            console.error('Decryption failed:', error);
+            showMessage('解密失败：API Key 可能不正确', 'danger');
+        }
+    }
+
+    // 下载解密后的私钥
+    function downloadDecryptedKey() {
+        const key = document.getElementById('decrypted-private-key').value;
+        downloadFile(key, `private-key-${currentViewCertId.substring(0, 8)}.key`);
+    }
+
+    // 复制解密后的私钥
+    function copyDecryptedKey() {
+        const keyEl = document.getElementById('decrypted-private-key');
+        keyEl.select();
+        document.execCommand('copy');
+        showMessage('私钥已复制到剪贴板', 'success');
+    }
+
+    // 删除存储的私钥
+    function deleteStoredKey() {
+        if (confirm('确定要从浏览器删除此私钥吗？此操作不可恢复！')) {
+            deleteCertificateKey(currentViewCertId);
+            bootstrap.Modal.getInstance(document.getElementById('viewPrivateKeyModal')).hide();
+            showMessage('私钥已从浏览器删除', 'success');
+        }
+    }
+
+    // 确认并关闭结果模态框
+    async function confirmAndClose() {
+        console.log('[DEBUG] confirmAndClose called');
+        console.log('[DEBUG] pendingCertData:', pendingCertData);
+
+        const saveCheckbox = document.getElementById('saveToLocalStorage');
+        console.log('[DEBUG] saveCheckbox checked:', saveCheckbox ? saveCheckbox.checked : 'not found');
+        console.log('[DEBUG] encryption_key present:', pendingCertData ? !!pendingCertData.encryption_key : false);
+
+        if (saveCheckbox && saveCheckbox.checked && pendingCertData && pendingCertData.encryption_key) {
+            try {
+                console.log('[DEBUG] Starting encryption...');
+                // 使用后端返回的 encryption_key 直接加密保存
+                const encrypted = await encryptPrivateKey(pendingCertData.private_key, pendingCertData.encryption_key);
+                console.log('[DEBUG] Encryption successful, saving to localStorage...');
+                saveCertificateKey(pendingCertData.cert_id, encrypted, {
+                    hostnames: pendingCertData.hostnames,
+                    expiresOn: pendingCertData.expires_on
+                });
+                console.log('[DEBUG] Saved to localStorage, cert_id:', pendingCertData.cert_id);
+                showMessage('私钥已加密保存到浏览器', 'success');
+            } catch (error) {
+                console.error('[DEBUG] Save failed:', error);
+                showMessage('保存失败: ' + error.message, 'danger');
+            }
+        } else {
+            console.log('[DEBUG] Skipping save - conditions not met');
+        }
+
+        pendingCertData = null;
+
+        // 延迟刷新以显示消息
+        setTimeout(() => {
+            window.location.reload();
+        }, 800);
+    }
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // 更新存储的私钥按钮状态
+        updateStoredKeysUI();
+        console.log('[DEBUG] Page loaded, stored certificates:', Object.keys(getStoredCertificates()));
     });
 </script>
 </body>

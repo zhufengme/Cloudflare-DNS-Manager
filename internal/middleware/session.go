@@ -24,14 +24,14 @@ func InitSession(expiration time.Duration) {
 func AuthRequired(c *fiber.Ctx) error {
 	sess, err := Store.Get(c)
 	if err != nil {
-		return c.Redirect("/login")
+		return handleAuthFailure(c)
 	}
 
 	email := sess.Get("cloudflare_email")
 	apiKey := sess.Get("user_api_key")
 
 	if email == nil || apiKey == nil {
-		return c.Redirect("/login")
+		return handleAuthFailure(c)
 	}
 
 	// 注入到上下文
@@ -39,4 +39,19 @@ func AuthRequired(c *fiber.Ctx) error {
 	c.Locals("user_api_key", apiKey.(string))
 
 	return c.Next()
+}
+
+// handleAuthFailure 处理认证失败 - 根据请求类型返回不同响应
+func handleAuthFailure(c *fiber.Ctx) error {
+	// 检查是否为 API 请求
+	path := c.Path()
+	if len(path) >= 4 && path[:4] == "/api" {
+		// API 请求返回 JSON
+		return c.Status(401).JSON(fiber.Map{
+			"success": false,
+			"error":   "未登录或会话已过期，请重新登录",
+		})
+	}
+	// 页面请求重定向到登录页
+	return c.Redirect("/login")
 }
